@@ -14,6 +14,7 @@ export const endpoints = {
     // auth
     session: (session_id) =>
         api.post("/auth/session", { session_id }).then((r) => r.data),
+    guest: () => api.post("/auth/guest").then((r) => r.data),
     me: () => api.get("/auth/me").then((r) => r.data),
     logout: () => api.post("/auth/logout").then((r) => r.data),
 

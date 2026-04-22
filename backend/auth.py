@@ -150,6 +150,50 @@ def build_auth_router(db: AsyncIOMotorDatabase) -> APIRouter:
         user = await db.users.find_one({"user_id": user_id}, {"_id": 0})
         return {"user": user}
 
+    @router.post("/guest")
+    async def guest(response: Response):
+        """One-click demo login — creates a throwaway user + 7-day session.
+        Handy for showing the prototype without Google OAuth."""
+        import secrets
+
+        now = datetime.now(timezone.utc)
+        user_id = f"guest_{uuid.uuid4().hex[:12]}"
+        token = f"guest_{secrets.token_urlsafe(24)}"
+        expires = now + timedelta(days=SESSION_TTL_DAYS)
+        await db.users.insert_one(
+            {
+                "user_id": user_id,
+                "email": f"{user_id}@guest.raku",
+                "name": "Guest",
+                "picture": None,
+                "accent_color": "#8BE3B4",
+                "vibe": "chill",
+                "pronouns": "they/them",
+                "is_guest": True,
+                "created_at": now.isoformat(),
+                "last_login_at": now.isoformat(),
+            }
+        )
+        await db.user_sessions.insert_one(
+            {
+                "session_token": token,
+                "user_id": user_id,
+                "expires_at": expires.isoformat(),
+                "created_at": now.isoformat(),
+            }
+        )
+        response.set_cookie(
+            key=SESSION_COOKIE,
+            value=token,
+            max_age=SESSION_TTL_DAYS * 24 * 3600,
+            httponly=True,
+            secure=True,
+            samesite="none",
+            path="/",
+        )
+        user = await db.users.find_one({"user_id": user_id}, {"_id": 0})
+        return {"user": user}
+
     @router.get("/me")
     async def me(current_user: dict = Depends(get_current_user)):
         return current_user
