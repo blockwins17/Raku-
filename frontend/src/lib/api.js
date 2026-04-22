@@ -3,14 +3,24 @@ import axios from "axios";
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 export const API = `${BACKEND_URL}/api`;
 
+// Send cookies with every request (Emergent session cookie)
 export const api = axios.create({
     baseURL: API,
+    withCredentials: true,
     headers: { "Content-Type": "application/json" },
 });
 
 export const endpoints = {
-    me: () => api.get("/me").then((r) => r.data),
+    // auth
+    session: (session_id) =>
+        api.post("/auth/session", { session_id }).then((r) => r.data),
+    me: () => api.get("/auth/me").then((r) => r.data),
+    logout: () => api.post("/auth/logout").then((r) => r.data),
+
+    // profile
     patchMe: (body) => api.patch("/me", body).then((r) => r.data),
+
+    // core
     today: () => api.get("/today").then((r) => r.data),
     calendar: (start, end) =>
         api.get("/calendar", { params: { start, end } }).then((r) => r.data),
@@ -23,11 +33,16 @@ export const endpoints = {
         api.post(`/integrations/${id}/sync`).then((r) => r.data),
     disconnectIntegration: (id) =>
         api.post(`/integrations/${id}/disconnect`).then((r) => r.data),
+
+    // google
+    googleConnect: () =>
+        api.get("/oauth/google/connect").then((r) => r.data),
+
+    // chat
     chat: (text, conversation_id) =>
-        api
-            .post("/chat", { text, conversation_id })
-            .then((r) => r.data),
+        api.post("/chat", { text, conversation_id }).then((r) => r.data),
     getChat: (id) => api.get(`/chat/${id}`).then((r) => r.data),
+
     importAssignments: (assignments, source = "brightspace") =>
         api
             .post("/assignments/import", { assignments, source })

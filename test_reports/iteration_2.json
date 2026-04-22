@@ -1,0 +1,47 @@
+{
+  "summary": "Iteration 2: tested multi-user auth, integrations (mock paths), per-user isolation, scheduler registration, and full UI flows. 22/22 backend pytest passed. Frontend: login gate, cookie-injected dashboard, connections sync, settings accent persistence, and chat all functionally work. Several requested data-testid attributes are missing on rendered UI elements (sign out, user avatar, integration cards, chat messages) — functionality is present but testids do not match spec.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "missing_testids": [
+      {"component": "Sidebar user block", "expected": "data-testid='user-avatar'", "found": "visible 'Alex Carter' avatar but no testid"},
+      {"component": "Sidebar sign-out", "expected": "data-testid='sign-out-btn'", "found": "visible 'sign out' link but no testid — could not click programmatically"},
+      {"component": "Connections cards", "expected": "data-testid='integration-card-google_calendar' (and notion/brightspace)", "found": "3 cards render correctly but testids absent"},
+      {"component": "Chat messages", "expected": "data-testid^='chat-msg-'", "found": "messages render and assistant reply visible (screenshot), but no chat-msg- testids"}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_raku_backend.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Add data-testid='sign-out-btn' to the sidebar 'sign out' button so sign-out flow can be programmatically verified.",
+    "Add data-testid='user-avatar' to the sidebar avatar element.",
+    "Add data-testid={`integration-card-${id}`} on each integration card in Connections.jsx.",
+    "Add data-testid={`chat-msg-${msg.id}`} on each chat message bubble in Chat.jsx (or a stable role-prefixed id) so message persistence can be asserted in UI tests."
+  ],
+  "critical_code_review_comments": [
+    "auth.py /api/auth/session sets cookie with secure=True, samesite='none' — correct for cross-site preview domain; verified.",
+    "scheduler.py: 'raku scheduler started' log present in /var/log/supervisor/backend.err.log on startup. sync_all and morning_checkin jobs registered.",
+    "server.py per-user scoping confirmed: all queries filter on user_id, _id excluded with projection.",
+    "server.py /api/integrations/{id}/sync mock path correctly adds 1 event/task on first call and dedupes on subsequent calls.",
+    "server.py /api/oauth/google/connect returns 503 when GOOGLE_CLIENT_ID empty — correct.",
+    "Chat works via Claude Sonnet 4.5 (EMERGENT_LLM_KEY present) — verified live response in UI screenshot.",
+    "Per-user isolation verified: tasks created by user A are not visible in user B's /tasks or /calendar."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_raku_backend.py"
+  ],
+  "success_rate": {"backend": "100% (22/22)", "frontend": "~85% (functionality works; 4 testids missing)"},
+  "test_credentials": "Plant test session per /app/auth_testing.md (used during testing). Active test user: test_user_FE_1776856083563 / token test_session_FE_1776856083563 — leave or clean up via auth_testing.md cleanup section.",
+  "seed_data_creation": "Backend tests plant temporary test_user_* and test_session_* rows in MongoDB (test_database) and clean them up via fixture teardown. One FE test session was planted manually for Playwright (still in DB).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend covered by /app/backend/tests/test_raku_backend.py (22 tests, all green). Auth testing pattern: plant Mongo session via auth_testing.md and use Authorization: Bearer header (or raku_session cookie for browser). Google/Notion env vars are intentionally empty — mock paths are the expected behavior. /api/oauth/google/connect should return 503 in this env. Scheduler runs at startup, daily morning_checkin job is registered for 13:00 UTC but won't fire during a test run. The Today greeting includes user's first name. CSS var --raku-accent updates on accent change and persists across reload. Only gap is missing data-testid attributes on a few UI elements (see frontend_issues.missing_testids).",
+  "rca_of_the_issue": "N/A — no failing tests. Frontend testid gaps are spec-vs-implementation mismatches, not bugs. Functionality is intact in all flows tested."
+}
