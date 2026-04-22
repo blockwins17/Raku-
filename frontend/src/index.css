@@ -1,0 +1,229 @@
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Geist+Mono:wght@400;500&family=Geist:wght@300;400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    /* Raku accent – user-overridable. Default: mint glow. */
+    --raku-accent: #8be3b4;
+    --raku-accent-soft: rgba(139, 227, 180, 0.16);
+    --raku-accent-strong: rgba(139, 227, 180, 0.9);
+}
+
+html,
+body,
+#root {
+    height: 100%;
+    background: #07070a;
+    color: #f5f5f2;
+}
+
+body {
+    margin: 0;
+    font-family: "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "ss01" on, "cv11" on;
+    letter-spacing: -0.005em;
+}
+
+code,
+.mono {
+    font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.display {
+    font-family: "Fraunces", ui-serif, Georgia, serif;
+    letter-spacing: -0.02em;
+}
+
+::selection {
+    background: var(--raku-accent);
+    color: #0a0a0a;
+}
+
+@layer base {
+    :root {
+        --background: 240 6% 4%;
+        --foreground: 60 6% 96%;
+        --card: 240 4% 7%;
+        --card-foreground: 60 6% 96%;
+        --popover: 240 4% 7%;
+        --popover-foreground: 60 6% 96%;
+        --primary: 60 6% 96%;
+        --primary-foreground: 240 6% 4%;
+        --secondary: 240 4% 12%;
+        --secondary-foreground: 60 6% 96%;
+        --muted: 240 4% 12%;
+        --muted-foreground: 60 4% 64%;
+        --accent: 240 4% 14%;
+        --accent-foreground: 60 6% 96%;
+        --destructive: 0 62% 48%;
+        --destructive-foreground: 60 6% 96%;
+        --border: 240 4% 14%;
+        --input: 240 4% 14%;
+        --ring: 60 6% 96%;
+        --radius: 1rem;
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+}
+
+/* Scrollbar */
+*::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+}
+*::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.16);
+}
+
+/* Raku light (pulsing block cube) */
+.raku-light {
+    --size: 72px;
+    width: var(--size);
+    height: var(--size);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 3px;
+    transform: rotate(45deg) skew(-8deg, -8deg);
+    filter: drop-shadow(0 0 24px var(--raku-accent-soft))
+        drop-shadow(0 0 4px var(--raku-accent-soft));
+}
+.raku-light .block {
+    background: var(--raku-accent);
+    border-radius: 2px;
+    opacity: 0.85;
+    animation: rakuPulse 2.4s ease-in-out infinite;
+}
+.raku-light .block:nth-child(1) {
+    animation-delay: 0s;
+}
+.raku-light .block:nth-child(2) {
+    animation-delay: 0.1s;
+}
+.raku-light .block:nth-child(3) {
+    animation-delay: 0.25s;
+}
+.raku-light .block:nth-child(4) {
+    animation-delay: 0.4s;
+}
+.raku-light .block:nth-child(5) {
+    animation-delay: 0.55s;
+}
+.raku-light .block:nth-child(6) {
+    animation-delay: 0.7s;
+}
+.raku-light .block:nth-child(7) {
+    animation-delay: 0.85s;
+}
+.raku-light .block:nth-child(8) {
+    animation-delay: 1s;
+}
+.raku-light .block:nth-child(9) {
+    animation-delay: 1.15s;
+}
+
+@keyframes rakuPulse {
+    0%,
+    100% {
+        opacity: 0.25;
+        transform: scale(0.85);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+}
+
+.raku-light.small {
+    --size: 36px;
+    gap: 2px;
+}
+.raku-light.tiny {
+    --size: 22px;
+    gap: 1px;
+}
+.raku-light.large {
+    --size: 140px;
+    gap: 5px;
+}
+
+/* Soft grain overlay */
+.grain::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.045;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    mix-blend-mode: overlay;
+}
+
+/* Thin horizontal divider style used across cards */
+.hline {
+    height: 1px;
+    background: linear-gradient(
+        to right,
+        transparent,
+        rgba(255, 255, 255, 0.08),
+        transparent
+    );
+}
+
+/* Accent-colored focus ring for inputs/buttons when needed */
+.ring-accent:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--raku-accent-soft);
+}
+
+/* Util: thin card chrome */
+.card-thin {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+}
+
+.accent-text {
+    color: var(--raku-accent);
+}
+.accent-bg {
+    background: var(--raku-accent);
+    color: #0b0b0b;
+}
+.accent-border {
+    border-color: var(--raku-accent);
+}
+
+/* Chat bubble fade-in */
+.msg-in {
+    animation: fadeUp 0.22s ease-out;
+}
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
