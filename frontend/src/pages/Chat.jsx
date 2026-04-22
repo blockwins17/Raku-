@@ -103,7 +103,8 @@ export default function Chat() {
                 {messages.map((m) => (
                     <div
                         key={m.id}
-                        data-testid={`msg-${m.role}`}
+                        data-testid={`chat-msg-${m.id}`}
+                        data-role={m.role}
                         className={`msg-in flex ${
                             m.role === "user" ? "justify-end" : "justify-start"
                         }`}

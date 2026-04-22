@@ -1,67 +1,81 @@
 # Raku — Product Requirements Document
 
-_Last updated: 2026-04-22_
+_Last updated: 2026-04-22 (iteration 2)_
 
 ## Original problem statement
 
-> Raku is an AI academic OS, not a planner. It pulls school work from
-> Brightspace, Google Calendar, Notion and manual tasks, decides what matters
-> next, breaks big work into tiny steps, and keeps students gently on track via
-> web app + browser extension.
->
-> Visual: black background, white type, single accent color, pulsing 3-by-3
-> block-light as Raku's only "character". Sections: Today · Calendar · Chat ·
-> Connections · Extension · Settings.
+> Raku is an AI academic OS for college students. Pulls school work from
+> Brightspace (via extension), Google Calendar, Notion, and manual tasks.
+> Decides what matters next, breaks it into tiny steps, keeps student gently
+> on track. Design: black bg / white type / single accent / pulsing block-light.
 
 ## Personas
 
-- **Jordan, 19, sophomore** — ADHD-adjacent, uses Raku in 5-minute bursts
-  between classes. Needs one clear "next thing".
-- **Sam, 22, senior** — juggles thesis + job apps. Wants all their work in one
-  calm surface.
+- **Jordan, 19, sophomore** — ADHD-adjacent, uses Raku in 5-minute bursts.
+- **Sam, 22, senior** — juggles thesis + job apps.
+- **Taylor, 20, transfer** — multi-campus, needs calendar + LMS merged.
 
-## Architecture (what shipped)
+## Architecture
 
-| Layer       | Tech                                            |
-| ----------- | ----------------------------------------------- |
-| Web app     | React 19 + Tailwind + shadcn/ui                 |
-| API         | FastAPI + motor/MongoDB, all routes under /api  |
-| AI          | Claude Sonnet 4.5 via Emergent LLM key          |
-| Extension   | Chrome MV3, side panel + content script (D2L)   |
+| Layer         | Tech                                                 |
+| ------------- | ---------------------------------------------------- |
+| Web app       | React 19 + Tailwind + shadcn/ui                      |
+| API           | FastAPI + motor/MongoDB                              |
+| Auth          | Emergent-managed Google OAuth (cookie session)       |
+| AI            | Claude Sonnet 4.5 via Emergent LLM key               |
+| Google Cal    | google-auth + google-api-python-client (OAuth)       |
+| Notion        | notion-client (workspace-scoped)                     |
+| Scheduler     | APScheduler AsyncIO (30-min sync + daily check-in)   |
+| Extension     | Chrome MV3, side panel + content script              |
+| Container     | Dockerfile + docker-compose (mongo/backend/frontend) |
+| Deploy        | amplify.yml + .github/workflows/ci.yml               |
 
 ## Core requirements (static)
 
-1. Single-user demo instance (no auth). Room to upgrade to Emergent Google Auth.
-2. Tone: simple, short, Gen-Z, never guilt-trips.
-3. Raku = pulsing block-light. No face, no mascot.
-4. `/api/today` returns top 3 tasks ranked by urgency + importance + inverse effort.
-5. Chat remembers context per `conversation_id`.
-6. Extension POSTs scanned Brightspace assignments to `/api/assignments/import`.
+1. Multi-user via Google login. Each user has isolated data keyed on `user_id`.
+2. Tone: simple, short, Gen-Z, no guilt.
+3. Raku = pulsing block-light only.
+4. `/api/today` returns top 3 tasks scored by urgency + importance + effort.
+5. Chat is per-user, per-conversation.
+6. Integrations degrade to **mock** path when OAuth/token env vars are unset.
+7. Background worker: 30-min per-user sync + daily 13:00 UTC nudge.
 
-## Implemented (2026-04-22)
+## Implemented (2026-04-22 · iteration 1)
 
-- [x] Backend: User, Task, Event, Integration, Message models in MongoDB.
-- [x] Endpoints: /me, /today, /calendar, /tasks CRUD, /assignments/import,
-      /integrations + sync/disconnect, /chat + /chat/{id}, /conversations.
-- [x] Frontend: Today · Calendar · Chat · Connections · Extension preview · Settings.
-- [x] Accent color swatches bound to CSS variables; vibe switches system prompt.
-- [x] Chrome MV3 extension: side panel + content.js for D2L/Brightspace DOM scan.
-- [x] Tests: 14/14 backend pytest + full e2e UI flow verified.
+- [x] Models, endpoints, chat, extension, 6 screens, demo-mode, 14/14 tests.
 
-## P0 backlog (next)
+## Implemented (2026-04-22 · iteration 2)
 
-1. Real Google Calendar OAuth (read-only).
-2. Real Notion integration (query a tasks database).
-3. Emergent Google Auth to enable multi-user.
+- [x] Emergent Google Auth (session cookie + bearer fallback, auth_testing.md)
+- [x] Google Calendar OAuth real flow (connect / callback, refresh_token stored,
+      read-only events → Raku Events). Degrades to mock if env unset (503 on
+      /oauth/google/connect).
+- [x] Notion API real sync (async client, pagination, property parser). Degrades
+      to mock if env unset.
+- [x] APScheduler: `sync_all` every 30 min + `morning_checkin` cron @ 13:00 UTC.
+- [x] Per-user data isolation verified (22/22 backend tests).
+- [x] Login + AuthCallback routes, Protected wrapper, avatar + sign-out.
+- [x] Dockerfile, docker-compose.yml, amplify.yml, CI workflow, README deploy
+      guide.
+
+## P0 backlog
+
+1. Supply `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` in
+   prod `.env`.
+2. Supply `NOTION_TOKEN` + `NOTION_TASKS_DB_ID` in prod `.env` (or migrate to
+   per-user OAuth via `/notion/auth` — spec in README).
+3. Push to GitHub via Emergent "Save to GitHub" button; deploy frontend to
+   Amplify, backend to App Runner, Mongo Atlas.
 
 ## P1 backlog
 
-1. Proactive nudges (background worker): detect new items, auto-slot into Today.
-2. Expo mobile client reusing same API.
+1. Per-user timezone (currently UTC).  Morning nudge should fire at 8am
+   _local_.
+2. Expo mobile app reusing `/api`.
 3. Chat channels: iMessage / WhatsApp / Telegram bridges.
 
 ## P2 backlog
 
-1. Break big assignments into micro-steps distributed across days.
-2. Spotify-style "focus mode" with timer + Raku light.
-3. Per-course weekly summaries.
+1. Break big assignments into micro-steps spread across days.
+2. Weekly recap email.
+3. Spotify-style focus timer with Raku light.

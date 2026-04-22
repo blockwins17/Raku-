@@ -58,7 +58,7 @@ export const Sidebar = () => {
                             src={user.picture}
                             alt=""
                             className="w-7 h-7 rounded-full object-cover"
-                            data-testid="sidebar-user-avatar"
+                            data-testid="user-avatar"
                         />
                     ) : (
                         <div className="w-7 h-7 rounded-full bg-white/10 grid place-items-center text-xs">
@@ -72,7 +72,7 @@ export const Sidebar = () => {
                         <button
                             onClick={logout}
                             className="text-[11px] text-white/40 hover:text-white transition"
-                            data-testid="sidebar-logout-btn"
+                            data-testid="sign-out-btn"
                         >
                             sign out
                         </button>

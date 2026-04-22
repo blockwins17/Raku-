@@ -103,7 +103,7 @@ export default function Connections() {
                     return (
                         <li
                             key={it.id}
-                            data-testid={`integration-${it.id}`}
+                            data-testid={`integration-card-${it.id}`}
                             className="card-thin p-6 flex items-center gap-6 flex-wrap"
                         >
                             <div className="flex items-center gap-3 min-w-[180px]">
