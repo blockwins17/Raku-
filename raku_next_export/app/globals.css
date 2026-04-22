@@ -1,0 +1,57 @@
+:root {
+  /* Raku accent — user-switchable via Settings. Default: mint glow. */
+  --raku-accent: #8be3b4;
+  --raku-accent-soft: rgba(139, 227, 180, 0.18);
+  --raku-accent-strong: rgba(139, 227, 180, 0.9);
+
+  --bg: #07070a;
+  --fg: #f5f5f2;
+  --fg-muted: rgba(245, 245, 242, 0.55);
+  --fg-dim: rgba(245, 245, 242, 0.35);
+  --hairline: rgba(255, 255, 255, 0.06);
+  --card-bg: rgba(255, 255, 255, 0.02);
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.005em;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::selection {
+  background: var(--raku-accent);
+  color: #0a0a0a;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.16);
+}

@@ -1,0 +1,8 @@
+/* Preserved filename (some starter imports reference it). Keep it thin —
+   all real styling lives in globals.css and page.module.css. */
+
+body {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--fg);
+}
