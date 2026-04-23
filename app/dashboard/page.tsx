@@ -107,7 +107,9 @@ export default function Page() {
             ← back to kumo
           </Link>
           <Link href="/" style={S.navBrand}>
-            <span style={S.navDot} />
+            <span style={S.navDotBox}>
+              <span style={S.navDot} />
+            </span>
             <span>kumo</span>
           </Link>
         </nav>
@@ -133,7 +135,9 @@ export default function Page() {
           ← back to kumo
         </Link>
         <Link href="/" style={S.navBrand}>
-          <span style={S.navDot} />
+          <span style={S.navDotBox}>
+            <span style={S.navDot} />
+          </span>
           <span>kumo</span>
         </Link>
       </nav>
@@ -321,11 +325,19 @@ const S: Record<string, React.CSSProperties> = {
   navBrand: {
     display: "flex",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
     fontSize: 13,
     color: "rgba(245,245,242,0.8)",
     textDecoration: "none",
     letterSpacing: "0.01em",
+  },
+  navDotBox: {
+    width: 16,
+    height: 16,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
   },
   navDot: {
     width: 8,
