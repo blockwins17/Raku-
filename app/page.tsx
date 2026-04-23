@@ -137,35 +137,48 @@ export default function LandingPage() {
 
 /* ───────── Kumo mark (diagonal pulsing grid) ───────── */
 function KumoMark({ small = false }: { small?: boolean }) {
-  const size = small ? 20 : 44;
+  const size = small ? 16 : 32;
+  // Rotating 45° makes the diamond ~√2 wider visually; reserve that width
+  // on the outer box so siblings don't overlap.
+  const box = Math.ceil(size * 1.5);
   return (
     <span
       aria-hidden
       style={{
-        width: size,
-        height: size,
-        display: "inline-grid",
-        gridTemplateColumns: "repeat(3, 1fr)",
-        gridTemplateRows: "repeat(3, 1fr)",
-        gap: 2,
-        transform: "rotate(45deg) skew(-8deg, -8deg)",
-        filter:
-          "drop-shadow(0 0 14px rgba(139,227,180,0.35)) drop-shadow(0 0 3px rgba(139,227,180,0.35))",
+        width: box,
+        height: box,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
         flexShrink: 0,
         verticalAlign: "middle",
       }}
     >
-      {Array.from({ length: 9 }).map((_, i) => (
-        <span
-          key={i}
-          style={{
-            background: "#8BE3B4",
-            borderRadius: 2,
-            animation: "kumo-pulse 2.4s ease-in-out infinite",
-            animationDelay: `${i * 0.12}s`,
-          }}
-        />
-      ))}
+      <span
+        style={{
+          width: size,
+          height: size,
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gridTemplateRows: "repeat(3, 1fr)",
+          gap: 2,
+          transform: "rotate(45deg) skew(-8deg, -8deg)",
+          filter:
+            "drop-shadow(0 0 14px rgba(139,227,180,0.35)) drop-shadow(0 0 3px rgba(139,227,180,0.35))",
+        }}
+      >
+        {Array.from({ length: 9 }).map((_, i) => (
+          <span
+            key={i}
+            style={{
+              background: "#8BE3B4",
+              borderRadius: 2,
+              animation: "kumo-pulse 2.4s ease-in-out infinite",
+              animationDelay: `${i * 0.12}s`,
+            }}
+          />
+        ))}
+      </span>
       <style>{`
         @keyframes kumo-pulse {
           0%, 100% { opacity: 0.25; transform: scale(0.85); }
@@ -230,7 +243,7 @@ const S: Record<string, React.CSSProperties> = {
     flexWrap: "wrap",
     gap: 16,
   },
-  brand: { display: "flex", alignItems: "center", gap: 10 },
+  brand: { display: "flex", alignItems: "center", gap: 6 },
   brandName: {
     fontSize: 15,
     letterSpacing: "0.02em",
