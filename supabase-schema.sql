@@ -90,6 +90,27 @@ create policy "anon read sms_sessions"   on public.sms_sessions for select to an
 create policy "anon insert sms_sessions" on public.sms_sessions for insert to anon with check (true);
 create policy "anon update sms_sessions" on public.sms_sessions for update to anon using (true) with check (true);
 
+-- ──────────────── waitlist (early-access signups) ────────────────
+create table if not exists public.waitlist (
+  id                  uuid primary key default gen_random_uuid(),
+  email               text not null,
+  wants_user_testing  boolean not null default false,
+  source              text,
+  created_at          timestamptz not null default now()
+);
+
+-- stop duplicate signups (case-insensitive)
+create unique index if not exists waitlist_email_lower_idx
+  on public.waitlist (lower(email));
+
+alter table public.waitlist enable row level security;
+
+drop policy if exists "anon insert waitlist" on public.waitlist;
+drop policy if exists "anon read waitlist"   on public.waitlist;
+
+-- Anyone can join; no one can read via anon (keeps emails private).
+create policy "anon insert waitlist" on public.waitlist for insert to anon with check (true);
+
 -- ──────────────── user_state (for pause / killswitch) ────────────────
 create table if not exists public.user_state (
   id            uuid primary key default gen_random_uuid(),

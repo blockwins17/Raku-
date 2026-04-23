@@ -4,6 +4,7 @@ import BrightspaceDemo from "./components/BrightspaceDemo";
 import FakeChat from "./components/FakeChat";
 import KumoFeatures from "./components/KumoFeatures";
 import ConnectAll from "./components/ConnectAll";
+import Waitlist from "./components/Waitlist";
 
 export default function LandingPage() {
   return (
@@ -127,6 +128,11 @@ export default function LandingPage() {
       {/* ───────── BRIGHTSPACE DEMO ───────── */}
       <section id="demo" style={S.section}>
         <BrightspaceDemo />
+      </section>
+
+      {/* ───────── WAITLIST ───────── */}
+      <section id="waitlist" style={S.section}>
+        <Waitlist />
       </section>
 
       {/* ───────── FOOTER ───────── */}
