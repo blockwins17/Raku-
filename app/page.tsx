@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Amplify } from "aws-amplify";
 import { generateClient } from "aws-amplify/data";
 import type { Schema } from "@/amplify/data/resource";
@@ -9,10 +9,39 @@ import "@aws-amplify/ui-react/styles.css";
 import styles from "./page.module.css";
 import RakuLight from "./components/RakuLight";
 
-Amplify.configure(outputs);
-const client = generateClient<Schema>();
+/* ──────────────── Amplify bootstrapping (graceful fallback) ──────────────── */
+/*
+  If `amplify_outputs.json` has a real `data` block, we talk to AppSync.
+  If it's the placeholder ({auth:{}, data:{}}) or anything goes wrong,
+  we fall back to local state persisted in localStorage — the UI is
+  identical either way.
 
-// ──────────────── constants ────────────────
+  Why this exists: the project is currently deployed to Vercel, which
+  does NOT run `ampx pipeline-deploy`, so there is no real Amplify backend
+  to talk to.  When the user later switches to Amplify Hosting (or pastes
+  real values into `amplify_outputs.json`), the UI will automatically
+  start using AppSync with zero code changes.
+*/
+type AmplifyClient = ReturnType<typeof generateClient<Schema>>;
+const CFG = outputs as Record<string, unknown>;
+const HAS_REAL_AMPLIFY =
+  Boolean(
+    CFG?.data &&
+      typeof (CFG.data as Record<string, unknown>).url === "string",
+  );
+
+let client: AmplifyClient | null = null;
+if (HAS_REAL_AMPLIFY) {
+  try {
+    Amplify.configure(outputs as never);
+    client = generateClient<Schema>();
+  } catch (err) {
+    console.warn("[raku] Amplify configure failed, using local state:", err);
+    client = null;
+  }
+}
+
+/* ──────────────── constants ──────────────── */
 const NAV = [
   { id: "today", label: "Today" },
   { id: "calendar", label: "Calendar" },
@@ -38,69 +67,151 @@ const VIBES = [
   { id: "quiet", label: "Quiet focus", sub: "barely speaks" },
 ];
 
-const SEED_TASKS = [
+type TaskStatus = "todo" | "doing" | "done" | "later";
+type TaskSource = "manual" | "brightspace" | "notion" | "googleCalendar" | "raku";
+type EventKind = "classroom" | "exam" | "assignment" | "event";
+type IntStatus = "ready" | "mock" | "live" | "disconnected";
+
+interface TaskRow {
+  id: string;
+  title: string;
+  course?: string | null;
+  dueAt?: string | null;
+  effortMin?: number | null;
+  importance?: number | null;
+  status: TaskStatus;
+  source: TaskSource;
+  steps?: string[];
+}
+
+interface EventRow {
+  id: string;
+  title: string;
+  course?: string | null;
+  startAt: string;
+  endAt?: string | null;
+  kind?: EventKind;
+  source?: TaskSource;
+}
+
+interface IntegrationRow {
+  id: string;
+  integrationId: string;
+  name: string;
+  description?: string | null;
+  status: IntStatus;
+  lastSyncAt?: string | null;
+}
+
+const uid = () =>
+  typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2);
+
+const SEED_TASKS: Omit<TaskRow, "id">[] = [
   {
     title: "Email professor about extension",
     course: "BIO 130",
-    dueInHrs: 6,
+    dueAt: new Date(Date.now() + 6 * 3_600_000).toISOString(),
     effortMin: 10,
     importance: 4,
-    source: "manual" as const,
+    status: "todo",
+    source: "manual",
     steps: ["Open email", "Draft 4 lines", "Send"],
   },
   {
     title: "Problem Set 3",
     course: "MATH 220",
-    dueInHrs: 48,
+    dueAt: new Date(Date.now() + 48 * 3_600_000).toISOString(),
     effortMin: 90,
     importance: 5,
-    source: "brightspace" as const,
+    status: "todo",
+    source: "brightspace",
     steps: ["Open problem set", "Do Q1–Q3", "Break", "Do Q4–Q6", "Check"],
   },
   {
     title: "Draft essay intro — Identity & Memory",
     course: "ENG 210",
-    dueInHrs: 96,
+    dueAt: new Date(Date.now() + 96 * 3_600_000).toISOString(),
     effortMin: 45,
     importance: 4,
-    source: "notion" as const,
+    status: "todo",
+    source: "notion",
     steps: ["Pick 1 angle", "Write thesis sentence", "3 support bullets"],
   },
   {
     title: "Read Chapter 4 — Intro to Sociology",
     course: "SOC 101",
-    dueInHrs: 20,
+    dueAt: new Date(Date.now() + 20 * 3_600_000).toISOString(),
     effortMin: 40,
     importance: 3,
-    source: "brightspace" as const,
+    status: "todo",
+    source: "brightspace",
     steps: ["Skim headings", "Read 4.1", "3 bullet takeaways"],
   },
 ];
 
-const SEED_EVENTS = [
-  { title: "MATH 220 Lecture", course: "MATH 220", offsetHrs: 2, durationHrs: 1.25, kind: "classroom" as const, source: "googleCalendar" as const },
-  { title: "SOC 101 Lecture", course: "SOC 101", offsetHrs: 27, durationHrs: 1, kind: "classroom" as const, source: "googleCalendar" as const },
-  { title: "MATH 220 Midterm", course: "MATH 220", offsetHrs: 144, durationHrs: 2, kind: "exam" as const, source: "brightspace" as const },
+const SEED_EVENTS: Omit<EventRow, "id">[] = [
+  {
+    title: "MATH 220 Lecture",
+    course: "MATH 220",
+    startAt: new Date(Date.now() + 2 * 3_600_000).toISOString(),
+    endAt: new Date(Date.now() + 3.25 * 3_600_000).toISOString(),
+    kind: "classroom",
+    source: "googleCalendar",
+  },
+  {
+    title: "SOC 101 Lecture",
+    course: "SOC 101",
+    startAt: new Date(Date.now() + 27 * 3_600_000).toISOString(),
+    endAt: new Date(Date.now() + 28 * 3_600_000).toISOString(),
+    kind: "classroom",
+    source: "googleCalendar",
+  },
+  {
+    title: "MATH 220 Midterm",
+    course: "MATH 220",
+    startAt: new Date(Date.now() + 144 * 3_600_000).toISOString(),
+    endAt: new Date(Date.now() + 146 * 3_600_000).toISOString(),
+    kind: "exam",
+    source: "brightspace",
+  },
 ];
 
-const SEED_INTEGRATIONS = [
-  { integrationId: "brightspace", name: "Brightspace", description: "Scans assignments via the Raku Chrome extension.", status: "ready" as const },
-  { integrationId: "google", name: "Google Calendar", description: "Pulls class times + personal events.", status: "mock" as const },
-  { integrationId: "notion", name: "Notion", description: "Syncs a tasks database you pick.", status: "mock" as const },
+const SEED_INTEGRATIONS: Omit<IntegrationRow, "id">[] = [
+  {
+    integrationId: "brightspace",
+    name: "Brightspace",
+    description: "Scans assignments via the Raku Chrome extension.",
+    status: "ready",
+  },
+  {
+    integrationId: "google",
+    name: "Google Calendar",
+    description: "Pulls class times + personal events.",
+    status: "mock",
+  },
+  {
+    integrationId: "notion",
+    name: "Notion",
+    description: "Syncs a tasks database you pick.",
+    status: "mock",
+  },
 ];
 
-// ──────────────── helpers ────────────────
+/* ──────────────── helpers ──────────────── */
 function hexToRgba(hex: string, a: number) {
   const c = hex.replace("#", "");
-  const n = parseInt(c.length === 3 ? c.split("").map((x) => x + x).join("") : c, 16);
+  const n = parseInt(
+    c.length === 3 ? c.split("").map((x) => x + x).join("") : c,
+    16,
+  );
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
 }
-
 function hoursFromNow(iso?: string | null) {
   if (!iso) return null;
   return (new Date(iso).getTime() - Date.now()) / 3_600_000;
 }
-
 function formatDue(iso?: string | null) {
   const h = hoursFromNow(iso);
   if (h === null) return "—";
@@ -110,15 +221,13 @@ function formatDue(iso?: string | null) {
   const days = Math.round(h / 24);
   return days === 1 ? "tomorrow" : `in ${days}d`;
 }
-
-function taskScore(t: Schema["Task"]["type"]) {
+function taskScore(t: TaskRow) {
   const importance = t.importance ?? 3;
   const effort = t.effortMin ?? 30;
   const h = hoursFromNow(t.dueAt);
   const urgency = h !== null && h > 0 ? 100 / Math.max(h, 0.1) : 0;
   return urgency + importance * 5 + 10 / Math.max(effort, 5);
 }
-
 function sameDay(a: Date, b: Date) {
   return (
     a.getFullYear() === b.getFullYear() &&
@@ -126,7 +235,6 @@ function sameDay(a: Date, b: Date) {
     a.getDate() === b.getDate()
   );
 }
-
 function greetingFor(n: number) {
   const h = new Date().getHours();
   const tod = h < 12 ? "morning" : h < 18 ? "afternoon" : "evening";
@@ -135,13 +243,21 @@ function greetingFor(n: number) {
   return `Good ${tod}. ${n} tiny things. we'll do them together.`;
 }
 
-// ──────────────── page ────────────────
+/* Keys used for localStorage persistence in fallback mode. */
+const LS = {
+  tasks: "raku.tasks.v1",
+  events: "raku.events.v1",
+  integrations: "raku.integrations.v1",
+  accent: "raku.accent",
+  vibe: "raku.vibe",
+};
+
+/* ──────────────── page ──────────────── */
 export default function Page() {
-  const [tasks, setTasks] = useState<Array<Schema["Task"]["type"]>>([]);
-  const [events, setEvents] = useState<Array<Schema["Event"]["type"]>>([]);
-  const [integrations, setIntegrations] = useState<Array<Schema["Integration"]["type"]>>([]);
+  const [tasks, setTasks] = useState<TaskRow[]>([]);
+  const [events, setEvents] = useState<EventRow[]>([]);
+  const [integrations, setIntegrations] = useState<IntegrationRow[]>([]);
   const [ready, setReady] = useState(false);
-  const [seeding, setSeeding] = useState(false);
   const [busyIntegration, setBusyIntegration] = useState<string | null>(null);
 
   const [accent, setAccent] = useState("#8BE3B4");
@@ -149,94 +265,144 @@ export default function Page() {
   const [active, setActive] = useState("today");
 
   const [chat, setChat] = useState([
-    { role: "assistant" as const, text: "hi. I'm Raku. tell me what's on your plate." },
+    {
+      role: "assistant" as const,
+      text: "hi. I'm Raku. tell me what's on your plate.",
+    },
   ]);
   const [chatInput, setChatInput] = useState("");
 
-  // ── load accent + vibe from localStorage ──
+  /* ── load accent + vibe from localStorage ── */
   useEffect(() => {
-    const a = typeof window !== "undefined" ? localStorage.getItem("raku_accent") : null;
-    const v = typeof window !== "undefined" ? localStorage.getItem("raku_vibe") : null;
+    if (typeof window === "undefined") return;
+    const a = localStorage.getItem(LS.accent);
+    const v = localStorage.getItem(LS.vibe);
     if (a) setAccent(a);
     if (v) setVibe(v);
   }, []);
 
-  // ── apply accent → CSS variables ──
+  /* ── apply accent → CSS variables ── */
   useEffect(() => {
     const r = document.documentElement;
     r.style.setProperty("--raku-accent", accent);
     r.style.setProperty("--raku-accent-soft", hexToRgba(accent, 0.18));
     r.style.setProperty("--raku-accent-strong", hexToRgba(accent, 0.9));
-    if (typeof window !== "undefined") localStorage.setItem("raku_accent", accent);
+    if (typeof window !== "undefined") localStorage.setItem(LS.accent, accent);
   }, [accent]);
 
   useEffect(() => {
-    if (typeof window !== "undefined") localStorage.setItem("raku_vibe", vibe);
+    if (typeof window !== "undefined") localStorage.setItem(LS.vibe, vibe);
   }, [vibe]);
 
-  // ── subscribe to Amplify Data ──
+  /* ── data bootstrap ─────────────────────────────────────────────
+     Amplify mode: subscribe to observeQuery for each model.
+     Local mode: hydrate from localStorage; seed if empty.
+  */
   useEffect(() => {
-    const subT = client.models.Task.observeQuery().subscribe({
-      next: ({ items }) => {
-        setTasks([...items]);
-        setReady(true);
-      },
-    });
-    const subE = client.models.Event.observeQuery().subscribe({
-      next: ({ items }) => setEvents([...items]),
-    });
-    const subI = client.models.Integration.observeQuery().subscribe({
-      next: ({ items }) => setIntegrations([...items]),
-    });
-    return () => {
-      subT.unsubscribe();
-      subE.unsubscribe();
-      subI.unsubscribe();
+    if (client) {
+      const subT = client.models.Task.observeQuery().subscribe({
+        next: ({ items }) => {
+          setTasks(
+            items.map((t) => ({
+              id: t.id,
+              title: t.title,
+              course: t.course,
+              dueAt: t.dueAt,
+              effortMin: t.effortMin,
+              importance: t.importance,
+              status: (t.status ?? "todo") as TaskStatus,
+              source: (t.source ?? "manual") as TaskSource,
+              steps: (t.steps ?? []).filter(Boolean) as string[],
+            })),
+          );
+          setReady(true);
+        },
+      });
+      const subE = client.models.Event.observeQuery().subscribe({
+        next: ({ items }) =>
+          setEvents(
+            items.map((e) => ({
+              id: e.id,
+              title: e.title,
+              course: e.course,
+              startAt: e.startAt,
+              endAt: e.endAt,
+              kind: (e.kind ?? "event") as EventKind,
+              source: (e.source ?? "manual") as TaskSource,
+            })),
+          ),
+      });
+      const subI = client.models.Integration.observeQuery().subscribe({
+        next: ({ items }) =>
+          setIntegrations(
+            items.map((i) => ({
+              id: i.id,
+              integrationId: i.integrationId,
+              name: i.name,
+              description: i.description,
+              status: (i.status ?? "mock") as IntStatus,
+              lastSyncAt: i.lastSyncAt,
+            })),
+          ),
+      });
+      return () => {
+        subT.unsubscribe();
+        subE.unsubscribe();
+        subI.unsubscribe();
+      };
+    }
+
+    // LOCAL MODE
+    const load = <T,>(key: string, fallback: T[]): T[] => {
+      if (typeof window === "undefined") return fallback;
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw) return JSON.parse(raw) as T[];
+      } catch {
+        /* ignore */
+      }
+      return fallback;
     };
+
+    const seededTasks = load<TaskRow>(
+      LS.tasks,
+      SEED_TASKS.map((s) => ({ ...s, id: uid() })),
+    );
+    const seededEvents = load<EventRow>(
+      LS.events,
+      SEED_EVENTS.map((e) => ({ ...e, id: uid() })),
+    );
+    const seededInts = load<IntegrationRow>(
+      LS.integrations,
+      SEED_INTEGRATIONS.map((i) => ({ ...i, id: uid() })),
+    );
+
+    setTasks(seededTasks);
+    setEvents(seededEvents);
+    setIntegrations(seededInts);
+    setReady(true);
   }, []);
 
-  // ── first-run seed: tasks + events + integrations if all empty ──
+  /* Persist to localStorage whenever state changes (LOCAL MODE only). */
   useEffect(() => {
-    if (!ready || seeding) return;
-    if (tasks.length > 0 || events.length > 0 || integrations.length > 0) return;
-    setSeeding(true);
-    (async () => {
-      const now = Date.now();
-      for (const s of SEED_TASKS) {
-        await client.models.Task.create({
-          title: s.title,
-          course: s.course,
-          dueAt: new Date(now + s.dueInHrs * 3_600_000).toISOString(),
-          effortMin: s.effortMin,
-          importance: s.importance,
-          status: "todo",
-          source: s.source,
-          steps: s.steps,
-        });
-      }
-      for (const e of SEED_EVENTS) {
-        const start = new Date(now + e.offsetHrs * 3_600_000);
-        const end = new Date(start.getTime() + e.durationHrs * 3_600_000);
-        await client.models.Event.create({
-          title: e.title,
-          course: e.course,
-          startAt: start.toISOString(),
-          endAt: end.toISOString(),
-          kind: e.kind,
-          source: e.source,
-        });
-      }
-      for (const i of SEED_INTEGRATIONS) {
-        await client.models.Integration.create(i);
-      }
-    })().catch((e) => console.error("seed failed", e));
-  }, [ready, tasks.length, events.length, integrations.length, seeding]);
+    if (!ready || client) return;
+    localStorage.setItem(LS.tasks, JSON.stringify(tasks));
+  }, [tasks, ready]);
+  useEffect(() => {
+    if (!ready || client) return;
+    localStorage.setItem(LS.events, JSON.stringify(events));
+  }, [events, ready]);
+  useEffect(() => {
+    if (!ready || client) return;
+    localStorage.setItem(LS.integrations, JSON.stringify(integrations));
+  }, [integrations, ready]);
 
-  // ── section tracking for mini-nav ──
+  /* ── section tracking for mini-nav ── */
   useEffect(() => {
     const ids = NAV.map((n) => n.id);
     const obs = new IntersectionObserver(
-      (entries) => entries.forEach((e) => e.isIntersecting && setActive(e.target.id)),
+      (entries) =>
+        entries.forEach((e) => e.isIntersecting && setActive(e.target.id)),
       { rootMargin: "-40% 0px -55% 0px", threshold: 0 },
     );
     ids.forEach((id) => {
@@ -246,7 +412,7 @@ export default function Page() {
     return () => obs.disconnect();
   }, [ready]);
 
-  // ── derived ──
+  /* ── derived ── */
   const openTasks = useMemo(
     () => tasks.filter((t) => t.status === "todo" || t.status === "doing"),
     [tasks],
@@ -255,18 +421,21 @@ export default function Page() {
     () => [...openTasks].sort((a, b) => taskScore(b) - taskScore(a)).slice(0, 3),
     [openTasks],
   );
-  const greeting = useMemo(() => greetingFor(topTasks.length), [topTasks.length]);
+  const greeting = useMemo(
+    () => greetingFor(topTasks.length),
+    [topTasks.length],
+  );
 
   const todayEvents = useMemo(() => {
     const now = new Date();
-    const todayTaskEvents = tasks
+    const todayTasks = tasks
       .filter((t) => t.dueAt && sameDay(new Date(t.dueAt), now))
       .map((t) => ({
         id: `task-${t.id}`,
         title: `${t.title} due`,
         course: t.course ?? "",
         startAt: t.dueAt!,
-        kind: "assignment" as const,
+        kind: "assignment" as EventKind,
       }));
     const todayEv = events
       .filter((e) => sameDay(new Date(e.startAt), now))
@@ -277,33 +446,42 @@ export default function Page() {
         startAt: e.startAt,
         kind: e.kind ?? "event",
       }));
-    return [...todayEv, ...todayTaskEvents].sort(
+    return [...todayEv, ...todayTasks].sort(
       (a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime(),
     );
   }, [events, tasks]);
 
-  // ── handlers ──
+  /* ── handlers ── */
   const jump = (id: string) =>
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document
+      .getElementById(id)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
 
-  const updateStatus = async (
-    id: string,
-    status: "todo" | "doing" | "done" | "later",
-  ) => {
-    await client.models.Task.update({ id, status });
-  };
+  const updateStatus = useCallback(
+    async (id: string, status: TaskStatus) => {
+      if (client) {
+        await client.models.Task.update({ id, status });
+        return;
+      }
+      setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, status } : t)));
+    },
+    [],
+  );
 
-  const start = async (t: Schema["Task"]["type"]) => {
+  const start = async (t: TaskRow) => {
     await updateStatus(t.id, "doing");
     setChat((c) => [
       ...c,
       { role: "user", text: `help me start: ${t.title}` },
-      { role: "assistant", text: "okay. 5 minutes. open it. I'll sit with you." },
+      {
+        role: "assistant",
+        text: "okay. 5 minutes. open it. I'll sit with you.",
+      },
     ]);
     jump("chat");
   };
 
-  const syncIntegration = async (it: Schema["Integration"]["type"]) => {
+  const syncIntegration = async (it: IntegrationRow) => {
     setBusyIntegration(it.id);
     try {
       const now = new Date();
@@ -311,44 +489,60 @@ export default function Page() {
         const start = new Date(now.getTime() + 48 * 3_600_000);
         start.setHours(18, 0, 0, 0);
         const end = new Date(start.getTime() + 1.5 * 3_600_000);
-        await client.models.Event.create({
+        const newEvent = {
           title: "Study Group — Organic Chem",
           course: "CHEM 210",
           startAt: start.toISOString(),
           endAt: end.toISOString(),
-          kind: "event",
-          source: "googleCalendar",
-        });
+          kind: "event" as EventKind,
+          source: "googleCalendar" as TaskSource,
+        };
+        if (client) {
+          await client.models.Event.create(newEvent);
+        } else {
+          setEvents((ev) => [...ev, { id: uid(), ...newEvent }]);
+        }
       } else if (it.integrationId === "notion") {
-        await client.models.Task.create({
+        const newTask = {
           title: "Read hooks — Teaching to Transgress Ch.1",
           course: "EDU 200",
           dueAt: new Date(now.getTime() + 72 * 3_600_000).toISOString(),
           effortMin: 40,
           importance: 3,
-          status: "todo",
-          source: "notion",
-          steps: [],
-        });
+          status: "todo" as TaskStatus,
+          source: "notion" as TaskSource,
+          steps: [] as string[],
+        };
+        if (client) {
+          await client.models.Task.create(newTask);
+        } else {
+          setTasks((ts) => [...ts, { id: uid(), ...newTask }]);
+        }
       }
-      await client.models.Integration.update({
-        id: it.id,
-        status: "live",
-        lastSyncAt: now.toISOString(),
-      });
+      const patch = { status: "live" as IntStatus, lastSyncAt: now.toISOString() };
+      if (client) {
+        await client.models.Integration.update({ id: it.id, ...patch });
+      } else {
+        setIntegrations((ins) =>
+          ins.map((i) => (i.id === it.id ? { ...i, ...patch } : i)),
+        );
+      }
     } finally {
       setBusyIntegration(null);
     }
   };
 
-  const disconnectIntegration = async (it: Schema["Integration"]["type"]) => {
+  const disconnectIntegration = async (it: IntegrationRow) => {
     setBusyIntegration(it.id);
     try {
-      await client.models.Integration.update({
-        id: it.id,
-        status: "disconnected",
-        lastSyncAt: null,
-      });
+      const patch = { status: "disconnected" as IntStatus, lastSyncAt: null };
+      if (client) {
+        await client.models.Integration.update({ id: it.id, ...patch });
+      } else {
+        setIntegrations((ins) =>
+          ins.map((i) => (i.id === it.id ? { ...i, ...patch } : i)),
+        );
+      }
     } finally {
       setBusyIntegration(null);
     }
@@ -363,18 +557,16 @@ export default function Page() {
       { role: "user", text },
       {
         role: "assistant",
-        text:
-          topTasks[0]
-            ? `start with: ${topTasks[0].title}. just 5 min. want me to break it down?`
-            : "nothing urgent. take 5, drink water, come back when ready.",
+        text: topTasks[0]
+          ? `start with: ${topTasks[0].title}. just 5 min. want me to break it down?`
+          : "nothing urgent. take 5, drink water, come back when ready.",
       },
     ]);
   };
 
-  // ──────────────── render ────────────────
+  /* ──────────────── render ──────────────── */
   return (
     <div className={styles.app}>
-      {/* mini left-nav */}
       <aside className={styles.sidebar}>
         <div className={styles.brand}>
           <RakuLight size="tiny" />
@@ -426,7 +618,11 @@ export default function Page() {
             ) : (
               <ol className={styles.tasks}>
                 {topTasks.map((t, i) => (
-                  <li key={t.id} className={styles.task} data-testid={`task-${i}`}>
+                  <li
+                    key={t.id}
+                    className={styles.task}
+                    data-testid={`task-${i}`}
+                  >
                     <span className={styles.taskNum}>
                       {String(i + 1).padStart(2, "0")}
                     </span>
@@ -435,7 +631,9 @@ export default function Page() {
                       <div className={styles.taskMeta}>
                         {t.course && <span>{t.course}</span>}
                         {t.dueAt && <span>· due {formatDue(t.dueAt)}</span>}
-                        {t.effortMin ? <span>· ~{t.effortMin} min</span> : null}
+                        {t.effortMin ? (
+                          <span>· ~{t.effortMin} min</span>
+                        ) : null}
                       </div>
                       {(t.steps ?? []).length > 0 && (
                         <div className={styles.taskSteps}>
@@ -477,7 +675,10 @@ export default function Page() {
             >
               ask Raku — what now?
             </button>
-            <button className={styles.ghostBtn} onClick={() => jump("calendar")}>
+            <button
+              className={styles.ghostBtn}
+              onClick={() => jump("calendar")}
+            >
               see the week →
             </button>
           </div>
@@ -528,7 +729,9 @@ export default function Page() {
             <div className={styles.hline} />
             <ul className={styles.eventList}>
               {todayEvents.length === 0 && (
-                <li style={{ color: "var(--fg-muted)", padding: "24px 0" }}>
+                <li
+                  style={{ color: "var(--fg-muted)", padding: "24px 0" }}
+                >
                   clear day. good one to breathe.
                 </li>
               )}
@@ -543,13 +746,19 @@ export default function Page() {
                   <span className={styles.eventTitle}>
                     {e.title}
                     {e.course ? (
-                      <span style={{ color: "var(--fg-dim)", marginLeft: 8 }}>
+                      <span
+                        style={{ color: "var(--fg-dim)", marginLeft: 8 }}
+                      >
                         {e.course}
                       </span>
                     ) : null}
                   </span>
                   <span className={styles.eventTag}>
-                    {e.kind === "classroom" ? "class" : e.kind === "assignment" ? "due" : e.kind}
+                    {e.kind === "classroom"
+                      ? "class"
+                      : e.kind === "assignment"
+                        ? "due"
+                        : e.kind}
                   </span>
                 </li>
               ))}
@@ -578,7 +787,9 @@ export default function Page() {
                 >
                   <div
                     className={`${styles.bubble} ${
-                      m.role === "user" ? styles.bubbleUser : styles.bubbleAssistant
+                      m.role === "user"
+                        ? styles.bubbleUser
+                        : styles.bubbleAssistant
                     }`}
                   >
                     {m.text}
@@ -588,7 +799,11 @@ export default function Page() {
             </div>
             <div className={styles.chatSuggest}>
               {["what now?", "help me plan", "I'm tired"].map((s) => (
-                <button key={s} className={styles.chip} onClick={() => setChatInput(s)}>
+                <button
+                  key={s}
+                  className={styles.chip}
+                  onClick={() => setChatInput(s)}
+                >
                   {s}
                 </button>
               ))}
@@ -647,7 +862,9 @@ export default function Page() {
                 </span>
                 <div className={styles.connActions}>
                   {it.integrationId === "brightspace" ? (
-                    <button className={styles.outlineBtn}>install extension</button>
+                    <button className={styles.outlineBtn}>
+                      install extension
+                    </button>
                   ) : (
                     <button
                       className={styles.primaryBtn}
@@ -658,14 +875,15 @@ export default function Page() {
                       {busyIntegration === it.id ? "syncing…" : "sync now"}
                     </button>
                   )}
-                  {it.status !== "disconnected" && it.integrationId !== "brightspace" && (
-                    <button
-                      className={styles.ghostBtn}
-                      onClick={() => disconnectIntegration(it)}
-                    >
-                      disconnect
-                    </button>
-                  )}
+                  {it.status !== "disconnected" &&
+                    it.integrationId !== "brightspace" && (
+                      <button
+                        className={styles.ghostBtn}
+                        onClick={() => disconnectIntegration(it)}
+                      >
+                        disconnect
+                      </button>
+                    )}
                 </div>
                 {it.lastSyncAt && (
                   <div className={styles.connLast}>
@@ -689,7 +907,9 @@ export default function Page() {
 
           <div className={styles.card}>
             <div className={styles.eyebrow}>accent</div>
-            <div className={styles.subSmall}>pick the color of your Raku light.</div>
+            <div className={styles.subSmall}>
+              pick the color of your Raku light.
+            </div>
             <div className={styles.swatchRow}>
               {ACCENTS.map((a) => (
                 <button
@@ -698,7 +918,10 @@ export default function Page() {
                   className={`${styles.swatch} ${accent === a.hex ? styles.swatchOn : ""}`}
                   data-testid={`accent-${a.name}`}
                 >
-                  <span className={styles.swatchDot} style={{ background: a.hex }} />
+                  <span
+                    className={styles.swatchDot}
+                    style={{ background: a.hex }}
+                  />
                   <span>{a.name}</span>
                 </button>
               ))}
@@ -738,6 +961,11 @@ export default function Page() {
 
         <footer className={styles.footer}>
           v1 · beta · school feels lighter.
+          {!client && (
+            <div style={{ marginTop: 6, letterSpacing: 0, textTransform: "none" }}>
+              running in local-state mode (no Amplify backend configured)
+            </div>
+          )}
         </footer>
       </main>
     </div>
