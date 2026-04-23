@@ -1,45 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Amplify } from "aws-amplify";
-import { generateClient } from "aws-amplify/data";
-import type { Schema } from "@/amplify/data/resource";
-import outputs from "@/amplify_outputs.json";
-import "@aws-amplify/ui-react/styles.css";
 import styles from "./page.module.css";
 import RakuLight from "./components/RakuLight";
-
-/* ──────────────── Amplify bootstrapping (graceful fallback) ──────────────── */
-/*
-  If `amplify_outputs.json` has a real `data` block, we talk to AppSync.
-  If it's the placeholder ({auth:{}, data:{}}) or anything goes wrong,
-  we fall back to local state persisted in localStorage — the UI is
-  identical either way.
-
-  Why this exists: the project is currently deployed to Vercel, which
-  does NOT run `ampx pipeline-deploy`, so there is no real Amplify backend
-  to talk to.  When the user later switches to Amplify Hosting (or pastes
-  real values into `amplify_outputs.json`), the UI will automatically
-  start using AppSync with zero code changes.
-*/
-type AmplifyClient = ReturnType<typeof generateClient<Schema>>;
-const CFG = outputs as Record<string, unknown>;
-const HAS_REAL_AMPLIFY =
-  Boolean(
-    CFG?.data &&
-      typeof (CFG.data as Record<string, unknown>).url === "string",
-  );
-
-let client: AmplifyClient | null = null;
-if (HAS_REAL_AMPLIFY) {
-  try {
-    Amplify.configure(outputs as never);
-    client = generateClient<Schema>();
-  } catch (err) {
-    console.warn("[raku] Amplify configure failed, using local state:", err);
-    client = null;
-  }
-}
 
 /* ──────────────── constants ──────────────── */
 const NAV = [
@@ -243,7 +206,6 @@ function greetingFor(n: number) {
   return `Good ${tod}. ${n} tiny things. we'll do them together.`;
 }
 
-/* Keys used for localStorage persistence in fallback mode. */
 const LS = {
   tasks: "raku.tasks.v1",
   events: "raku.events.v1",
@@ -251,6 +213,17 @@ const LS = {
   accent: "raku.accent",
   vibe: "raku.vibe",
 };
+
+function loadArray<T>(key: string, fallback: T[]): T[] {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) return JSON.parse(raw) as T[];
+  } catch {
+    /* ignore */
+  }
+  return fallback;
+}
 
 /* ──────────────── page ──────────────── */
 export default function Page() {
@@ -264,22 +237,49 @@ export default function Page() {
   const [vibe, setVibe] = useState("chill");
   const [active, setActive] = useState("today");
 
-  const [chat, setChat] = useState([
+  const [chat, setChat] = useState<Array<{ role: "assistant" | "user"; text: string }>>([
     {
-      role: "assistant" as const,
+      role: "assistant",
       text: "hi. I'm Raku. tell me what's on your plate.",
     },
   ]);
   const [chatInput, setChatInput] = useState("");
 
-  /* ── load accent + vibe from localStorage ── */
+  /* ── hydrate everything from localStorage on mount ── */
   useEffect(() => {
-    if (typeof window === "undefined") return;
     const a = localStorage.getItem(LS.accent);
     const v = localStorage.getItem(LS.vibe);
     if (a) setAccent(a);
     if (v) setVibe(v);
+
+    setTasks(
+      loadArray<TaskRow>(LS.tasks, SEED_TASKS.map((s) => ({ ...s, id: uid() }))),
+    );
+    setEvents(
+      loadArray<EventRow>(LS.events, SEED_EVENTS.map((e) => ({ ...e, id: uid() }))),
+    );
+    setIntegrations(
+      loadArray<IntegrationRow>(
+        LS.integrations,
+        SEED_INTEGRATIONS.map((i) => ({ ...i, id: uid() })),
+      ),
+    );
+    setReady(true);
   }, []);
+
+  /* ── persist on every state change ── */
+  useEffect(() => {
+    if (!ready) return;
+    localStorage.setItem(LS.tasks, JSON.stringify(tasks));
+  }, [tasks, ready]);
+  useEffect(() => {
+    if (!ready) return;
+    localStorage.setItem(LS.events, JSON.stringify(events));
+  }, [events, ready]);
+  useEffect(() => {
+    if (!ready) return;
+    localStorage.setItem(LS.integrations, JSON.stringify(integrations));
+  }, [integrations, ready]);
 
   /* ── apply accent → CSS variables ── */
   useEffect(() => {
@@ -287,115 +287,12 @@ export default function Page() {
     r.style.setProperty("--raku-accent", accent);
     r.style.setProperty("--raku-accent-soft", hexToRgba(accent, 0.18));
     r.style.setProperty("--raku-accent-strong", hexToRgba(accent, 0.9));
-    if (typeof window !== "undefined") localStorage.setItem(LS.accent, accent);
+    localStorage.setItem(LS.accent, accent);
   }, [accent]);
 
   useEffect(() => {
-    if (typeof window !== "undefined") localStorage.setItem(LS.vibe, vibe);
+    localStorage.setItem(LS.vibe, vibe);
   }, [vibe]);
-
-  /* ── data bootstrap ─────────────────────────────────────────────
-     Amplify mode: subscribe to observeQuery for each model.
-     Local mode: hydrate from localStorage; seed if empty.
-  */
-  useEffect(() => {
-    if (client) {
-      const subT = client.models.Task.observeQuery().subscribe({
-        next: ({ items }) => {
-          setTasks(
-            items.map((t) => ({
-              id: t.id,
-              title: t.title,
-              course: t.course,
-              dueAt: t.dueAt,
-              effortMin: t.effortMin,
-              importance: t.importance,
-              status: (t.status ?? "todo") as TaskStatus,
-              source: (t.source ?? "manual") as TaskSource,
-              steps: (t.steps ?? []).filter(Boolean) as string[],
-            })),
-          );
-          setReady(true);
-        },
-      });
-      const subE = client.models.Event.observeQuery().subscribe({
-        next: ({ items }) =>
-          setEvents(
-            items.map((e) => ({
-              id: e.id,
-              title: e.title,
-              course: e.course,
-              startAt: e.startAt,
-              endAt: e.endAt,
-              kind: (e.kind ?? "event") as EventKind,
-              source: (e.source ?? "manual") as TaskSource,
-            })),
-          ),
-      });
-      const subI = client.models.Integration.observeQuery().subscribe({
-        next: ({ items }) =>
-          setIntegrations(
-            items.map((i) => ({
-              id: i.id,
-              integrationId: i.integrationId,
-              name: i.name,
-              description: i.description,
-              status: (i.status ?? "mock") as IntStatus,
-              lastSyncAt: i.lastSyncAt,
-            })),
-          ),
-      });
-      return () => {
-        subT.unsubscribe();
-        subE.unsubscribe();
-        subI.unsubscribe();
-      };
-    }
-
-    // LOCAL MODE
-    const load = <T,>(key: string, fallback: T[]): T[] => {
-      if (typeof window === "undefined") return fallback;
-      try {
-        const raw = localStorage.getItem(key);
-        if (raw) return JSON.parse(raw) as T[];
-      } catch {
-        /* ignore */
-      }
-      return fallback;
-    };
-
-    const seededTasks = load<TaskRow>(
-      LS.tasks,
-      SEED_TASKS.map((s) => ({ ...s, id: uid() })),
-    );
-    const seededEvents = load<EventRow>(
-      LS.events,
-      SEED_EVENTS.map((e) => ({ ...e, id: uid() })),
-    );
-    const seededInts = load<IntegrationRow>(
-      LS.integrations,
-      SEED_INTEGRATIONS.map((i) => ({ ...i, id: uid() })),
-    );
-
-    setTasks(seededTasks);
-    setEvents(seededEvents);
-    setIntegrations(seededInts);
-    setReady(true);
-  }, []);
-
-  /* Persist to localStorage whenever state changes (LOCAL MODE only). */
-  useEffect(() => {
-    if (!ready || client) return;
-    localStorage.setItem(LS.tasks, JSON.stringify(tasks));
-  }, [tasks, ready]);
-  useEffect(() => {
-    if (!ready || client) return;
-    localStorage.setItem(LS.events, JSON.stringify(events));
-  }, [events, ready]);
-  useEffect(() => {
-    if (!ready || client) return;
-    localStorage.setItem(LS.integrations, JSON.stringify(integrations));
-  }, [integrations, ready]);
 
   /* ── section tracking for mini-nav ── */
   useEffect(() => {
@@ -421,10 +318,7 @@ export default function Page() {
     () => [...openTasks].sort((a, b) => taskScore(b) - taskScore(a)).slice(0, 3),
     [openTasks],
   );
-  const greeting = useMemo(
-    () => greetingFor(topTasks.length),
-    [topTasks.length],
-  );
+  const greeting = useMemo(() => greetingFor(topTasks.length), [topTasks.length]);
 
   const todayEvents = useMemo(() => {
     const now = new Date();
@@ -457,19 +351,12 @@ export default function Page() {
       .getElementById(id)
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
 
-  const updateStatus = useCallback(
-    async (id: string, status: TaskStatus) => {
-      if (client) {
-        await client.models.Task.update({ id, status });
-        return;
-      }
-      setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, status } : t)));
-    },
-    [],
-  );
+  const updateStatus = useCallback((id: string, status: TaskStatus) => {
+    setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, status } : t)));
+  }, []);
 
-  const start = async (t: TaskRow) => {
-    await updateStatus(t.id, "doing");
+  const start = (t: TaskRow) => {
+    updateStatus(t.id, "doing");
     setChat((c) => [
       ...c,
       { role: "user", text: `help me start: ${t.title}` },
@@ -481,7 +368,7 @@ export default function Page() {
     jump("chat");
   };
 
-  const syncIntegration = async (it: IntegrationRow) => {
+  const syncIntegration = (it: IntegrationRow) => {
     setBusyIntegration(it.id);
     try {
       const now = new Date();
@@ -489,63 +376,52 @@ export default function Page() {
         const start = new Date(now.getTime() + 48 * 3_600_000);
         start.setHours(18, 0, 0, 0);
         const end = new Date(start.getTime() + 1.5 * 3_600_000);
-        const newEvent = {
-          title: "Study Group — Organic Chem",
-          course: "CHEM 210",
-          startAt: start.toISOString(),
-          endAt: end.toISOString(),
-          kind: "event" as EventKind,
-          source: "googleCalendar" as TaskSource,
-        };
-        if (client) {
-          await client.models.Event.create(newEvent);
-        } else {
-          setEvents((ev) => [...ev, { id: uid(), ...newEvent }]);
-        }
+        setEvents((ev) => [
+          ...ev,
+          {
+            id: uid(),
+            title: "Study Group — Organic Chem",
+            course: "CHEM 210",
+            startAt: start.toISOString(),
+            endAt: end.toISOString(),
+            kind: "event",
+            source: "googleCalendar",
+          },
+        ]);
       } else if (it.integrationId === "notion") {
-        const newTask = {
-          title: "Read hooks — Teaching to Transgress Ch.1",
-          course: "EDU 200",
-          dueAt: new Date(now.getTime() + 72 * 3_600_000).toISOString(),
-          effortMin: 40,
-          importance: 3,
-          status: "todo" as TaskStatus,
-          source: "notion" as TaskSource,
-          steps: [] as string[],
-        };
-        if (client) {
-          await client.models.Task.create(newTask);
-        } else {
-          setTasks((ts) => [...ts, { id: uid(), ...newTask }]);
-        }
+        setTasks((ts) => [
+          ...ts,
+          {
+            id: uid(),
+            title: "Read hooks — Teaching to Transgress Ch.1",
+            course: "EDU 200",
+            dueAt: new Date(now.getTime() + 72 * 3_600_000).toISOString(),
+            effortMin: 40,
+            importance: 3,
+            status: "todo",
+            source: "notion",
+            steps: [],
+          },
+        ]);
       }
-      const patch = { status: "live" as IntStatus, lastSyncAt: now.toISOString() };
-      if (client) {
-        await client.models.Integration.update({ id: it.id, ...patch });
-      } else {
-        setIntegrations((ins) =>
-          ins.map((i) => (i.id === it.id ? { ...i, ...patch } : i)),
-        );
-      }
+      setIntegrations((ins) =>
+        ins.map((i) =>
+          i.id === it.id
+            ? { ...i, status: "live", lastSyncAt: now.toISOString() }
+            : i,
+        ),
+      );
     } finally {
       setBusyIntegration(null);
     }
   };
 
-  const disconnectIntegration = async (it: IntegrationRow) => {
-    setBusyIntegration(it.id);
-    try {
-      const patch = { status: "disconnected" as IntStatus, lastSyncAt: null };
-      if (client) {
-        await client.models.Integration.update({ id: it.id, ...patch });
-      } else {
-        setIntegrations((ins) =>
-          ins.map((i) => (i.id === it.id ? { ...i, ...patch } : i)),
-        );
-      }
-    } finally {
-      setBusyIntegration(null);
-    }
+  const disconnectIntegration = (it: IntegrationRow) => {
+    setIntegrations((ins) =>
+      ins.map((i) =>
+        i.id === it.id ? { ...i, status: "disconnected", lastSyncAt: null } : i,
+      ),
+    );
   };
 
   const sendChat = () => {
@@ -631,9 +507,7 @@ export default function Page() {
                       <div className={styles.taskMeta}>
                         {t.course && <span>{t.course}</span>}
                         {t.dueAt && <span>· due {formatDue(t.dueAt)}</span>}
-                        {t.effortMin ? (
-                          <span>· ~{t.effortMin} min</span>
-                        ) : null}
+                        {t.effortMin ? <span>· ~{t.effortMin} min</span> : null}
                       </div>
                       {(t.steps ?? []).length > 0 && (
                         <div className={styles.taskSteps}>
@@ -729,9 +603,7 @@ export default function Page() {
             <div className={styles.hline} />
             <ul className={styles.eventList}>
               {todayEvents.length === 0 && (
-                <li
-                  style={{ color: "var(--fg-muted)", padding: "24px 0" }}
-                >
+                <li style={{ color: "var(--fg-muted)", padding: "24px 0" }}>
                   clear day. good one to breathe.
                 </li>
               )}
@@ -746,9 +618,7 @@ export default function Page() {
                   <span className={styles.eventTitle}>
                     {e.title}
                     {e.course ? (
-                      <span
-                        style={{ color: "var(--fg-dim)", marginLeft: 8 }}
-                      >
+                      <span style={{ color: "var(--fg-dim)", marginLeft: 8 }}>
                         {e.course}
                       </span>
                     ) : null}
@@ -961,11 +831,6 @@ export default function Page() {
 
         <footer className={styles.footer}>
           v1 · beta · school feels lighter.
-          {!client && (
-            <div style={{ marginTop: 6, letterSpacing: 0, textTransform: "none" }}>
-              running in local-state mode (no Amplify backend configured)
-            </div>
-          )}
         </footer>
       </main>
     </div>
