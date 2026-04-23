@@ -2,6 +2,7 @@ import Link from "next/link";
 import TextKumoQR from "./components/TextKumoQR";
 import BrightspaceDemo from "./components/BrightspaceDemo";
 import FakeChat from "./components/FakeChat";
+import KumoFeatures from "./components/KumoFeatures";
 
 export default function LandingPage() {
   return (
@@ -90,6 +91,9 @@ export default function LandingPage() {
           </li>
         </ol>
       </section>
+
+      {/* ───────── FEATURES (deadlines / breakdown / pomodoro / nudge) ───────── */}
+      <KumoFeatures />
 
       {/* ───────── TEXT KUMO QR ───────── */}
       <section id="text" style={S.section}>
