@@ -1,11 +1,20 @@
-# Raku — school feels lighter
+# Kumo — your AI cloud for school
 
-A tiny AI friend for college students. Pulls your school work, picks what
-matters next, and breaks it into gentle steps.
+**Kumo** (Japanese for *cloud*) is a tiny AI friend for college students with ADHD-ish brains. Text it, scan your Brightspace pages, and watch big scary stuff turn into small 10-minute things. No signup. No shame.
 
-**Stack:** Next.js 14 (App Router) · React 18 · TypeScript
-**Storage:** browser `localStorage` (no backend)
-**Host:** Vercel
+**Stack:** Next.js 14 (App Router) · TypeScript · Supabase · Vercel
+**Extension:** Chrome Manifest V3 — see [`raku-capture-extension/`](./raku-capture-extension)
+
+> The extension folder is still named `raku-capture-extension/` for now. Rename when convenient — nothing references it externally.
+
+## Routes
+
+| Path           | What it is                                                        |
+|----------------|-------------------------------------------------------------------|
+| `/`            | Landing page — hero, SMS QR, "how it works", Brightspace demo     |
+| `/dashboard`   | Today / Later / Completed task dashboard (backed by Supabase)     |
+| `/api/ai/*`    | 4 AI modes: explain, breakdown, plan, pause (burnout killswitch)  |
+| `/api/capture` | Extension webhook — accepts `organize_assignments` & `explain_simple` |
 
 ## Local dev
 
@@ -21,55 +30,23 @@ npm run build
 npm start
 ```
 
-## Deploy to Vercel
+## Environment variables (Vercel)
 
-1. Push this repo to GitHub.
-2. [vercel.com/new](https://vercel.com/new) → import the repo.
-3. Defaults are correct (Framework: **Next.js**, Build: `next build`, Output: `.next`).
-4. No environment variables needed.
+| Var                              | Required | What it does                                 |
+|----------------------------------|----------|----------------------------------------------|
+| `NEXT_PUBLIC_SUPABASE_URL`       | yes      | Your Supabase project URL                    |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`  | yes      | Anon public key                              |
+| `ANTHROPIC_API_KEY`              | no*      | Claude Sonnet (preferred for ADHD-tone AI)   |
+| `OPENAI_API_KEY`                 | no*      | `gpt-4o-mini` fallback                       |
 
-## What's inside
+\* If neither AI key is set, all `/api/ai/*` endpoints return realistic stubbed JSON so nothing breaks in the UI.
 
-One scrollable page with a left mini-nav:
+## Supabase schema
 
-- **Today** — ranked top 3 tasks (urgency × importance ÷ effort), Start / Later,
-  today's schedule.
-- **Calendar** — 7-day strip, dot markers for busy days, today's events.
-- **Chat** — *"what now?"* sample chat bubbles + input (local state).
-- **Connections** — Brightspace · Google Calendar · Notion tiles that
-  sync fake sample data into the UI.
-- **Settings** — 7 accent-color swatches, 4 vibe presets, coming-soon
-  chat channels.
+Run [`supabase-schema.sql`](./supabase-schema.sql) once in the Supabase SQL editor. It's idempotent — safe to re-run.
 
-All state (tasks, events, integrations, accent, vibe) persists in
-`localStorage` — reload keeps your changes. Reset with
-`localStorage.clear()` in the browser devtools console.
+Tables: `tasks`, `subtasks`, `capture_raw`, `user_state`. All with RLS on + open anon policies for v0.
 
-## Files
+## Chrome extension
 
-```
-app/
-  page.tsx             full Raku dashboard — pure React state
-  layout.tsx           Fraunces + Inter fonts, dark shell
-  globals.css          CSS variables + reset
-  app.css              body shim
-  page.module.css      dashboard styles
-  components/
-    RakuLight.tsx      pulsing 3×3 block-light (no mascot)
-    RakuLight.module.css
-```
-
-## Design
-
-- Dark background, off-white type, single user-pickable accent color.
-- Raku is a pulsing 3-by-3 block of light — CSS only, no images.
-- Copy: short, warm, Gen-Z. No guilt-trips. No lectures.
-
-## Roadmap
-
-- Real AI chat (currently local canned responses) — wire up an edge
-  function (`app/api/chat/route.ts`) that proxies to Claude / OpenAI.
-- Real integration syncs — add API routes that call Google Calendar /
-  Notion / Brightspace from the server.
-- Multi-user — add an auth layer (Clerk, Auth.js, or Supabase).
-- Mobile app — Expo + same React component shapes.
+See [`raku-capture-extension/README.md`](./raku-capture-extension/README.md) for load instructions. `npm run build:extension` inside that folder produces `dist/raku-capture-extension.zip` ready for the Chrome Web Store.

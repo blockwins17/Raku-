@@ -14,8 +14,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Raku — school feels lighter",
-  description: "A tiny AI friend for school.",
+  title: "Kumo — your AI cloud for school",
+  description:
+    "Kumo is your tiny AI cloud for school. Text it, scan your Brightspace pages, and watch big stuff turn into small steps.",
 };
 
 export default function RootLayout({

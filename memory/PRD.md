@@ -1,89 +1,61 @@
-# Raku — PRD
+# Kumo — PRD
 
-**Product:** Raku — an AI academic OS for college students, built for ADHD-adjacent brains.
+**Product:** Kumo (Japanese for *cloud*) — a tiny AI cloud for college students with ADHD-adjacent brains. Float the hard stuff so they can finish it without drowning.
 **Repo:** `blockwins17/Raku-`  ·  **Branch:** `raku-ui`
 **Stack:** Next.js 14 (App Router) · Supabase (Postgres) · Vercel
-**Extension:** Manifest V3 Chrome extension (`raku-capture-extension/`)
+**Extension:** Manifest V3 Chrome extension in `raku-capture-extension/` (folder name unchanged for now — user-visible strings all say "Kumo Capture")
 
-## Tone (applies to all AI output)
-- Calm, Gen-Z friendly, never cringe, never shaming.
-- Short sentences. No productivity jargon.
-- Normalize struggle ("school is a lot, you're not the problem").
-- Always end toward ONE small concrete next step (5–15 min).
+## Routes
+| Path           | Purpose |
+|----------------|---------|
+| `/`            | Landing page (hero, SMS QR, how-it-works, Kumo meaning, fake chat, Brightspace demo) |
+| `/dashboard`   | Task dashboard (Today / Later / Completed) — Supabase-backed |
+| `/api/ai/{explain,breakdown,plan,pause}` | 4 core AI modes |
+| `/api/capture` | Chrome-extension webhook |
 
-## Core surfaces
+## Tone
+Calm, Gen-Z friendly, never cringe. Short sentences. Normalize struggle. Always end toward ONE small concrete next step (5–15 min).
 
-### 1. Web app (Today / Later / Completed)
-- Tasks stored in Supabase (`tasks` table).
-- Optimistic UI with rollback on error.
-- Friendly empty / error / "backend not configured" states.
+## Landing page components
+- `app/components/TextKumoQR.tsx` — SMS QR + tap-to-text number (`DEMO_PHONE`).
+- `app/components/BrightspaceDemo.tsx` — mock Brightspace assignment + live `/api/ai/explain` demo.
+- `app/components/FakeChat.tsx` — static iMessage-style mock thread for video B-roll.
 
-### 2. Deep AI chat modes (backend)
-- `POST /api/ai/explain` → `{ summary, whatToDo[], keyPoints[] }`
-- `POST /api/ai/breakdown` → `{ subtasks[], totalMinutes }` (5–20 min each, max 8)
-- `POST /api/ai/plan` → `{ windowMinutes, blocks[] }` (10–25 min blocks, 5-min gaps)
-- `GET/POST /api/ai/pause` → burnout killswitch (pauses until end of local day)
-
-### 3. Chrome extension — Raku Capture v0
-- Floating **R** bubble on every page (Shadow-DOM isolated).
-- Overlay with *Organize assignments* + *Explain this in simple terms*.
-- Captures `document.innerText` + URL + optional course name.
-- POSTs via service worker to `${BASE_URL}/api/capture`.
-- Default base URL: `https://raku.vercel.app`, overridable in Options page.
-
-## Data model
-
-| Table         | Fields |
-|---------------|--------|
-| `tasks`       | id, user_id, title, status (`today|later|completed`), created_at |
-| `subtasks`    | id, parent_task_id, title, estimated_minutes, status, order_index |
-| `capture_raw` | id, user_id, mode, source, url, course_name, raw_text, created_at |
-| `user_state`  | id, user_id (unique), pause_until, pause_reason, updated_at |
-
-All tables have RLS enabled with permissive anon policies for v0.
-**P1 work:** tighten when Supabase Auth is wired in.
-
-## AI integration
-- `lib/ai/provider.ts` — pure `fetch` wrapper.
-  - **Primary:** Anthropic Claude Sonnet (`claude-sonnet-4-5-20250929`) via `ANTHROPIC_API_KEY`.
-  - **Fallback:** OpenAI `gpt-4o-mini` via `OPENAI_API_KEY`.
-  - **No keys set** → realistic stubbed JSON (prod UI never breaks).
-- Prompts centralized in `lib/ai/prompts.ts`.
-- Set keys in Vercel → Project → Environment Variables. No code change required.
+## Demo-video SMS flow
+- `DEMO_PHONE` constant in `TextKumoQR.tsx` is a **placeholder 555 number**. The QR encodes `sms:+15555866000?&body=hi%20kumo`, which opens Messages on any modern iPhone / Android.
+- The two-way chat ("Kumo texts back + a link to your laptop") is **visually faked** in `FakeChat.tsx` for now. To wire it for real, see *Backlog → SMS bot*.
 
 ## What's implemented (as of 2026-02)
-- ✅ Task UI wired to Supabase
-- ✅ All 5 AI/capture API routes + handlers + prompts
-- ✅ Chrome extension (bubble, overlay, options, popup, icons, zip builder)
-- ✅ `npm run build` passes
-- ✅ Local curl tests pass for all 5 routes (stub + real modes)
+- ✅ Full rebrand Raku → Kumo (UI strings, prompts, metadata, extension)
+- ✅ New landing page at `/` — hero, 3 steps, SMS QR, Kumo meaning, fake chat, Brightspace live demo
+- ✅ Dashboard moved to `/dashboard`
+- ✅ All 5 AI/capture API routes still working; build passes
+- ✅ Chrome extension rebranded (manifest name, popup, options, overlay strings)
 
-## Backlog (priority order)
+## Backlog
 
-### P0 — verification
-- [ ] User loads unpacked extension in Chrome + tests both modes end-to-end against their Vercel URL.
+### P0
+- [ ] User shoots demo video. If the real SMS number is ready, swap `DEMO_PHONE` in `app/components/TextKumoQR.tsx`.
 
-### P1 — make the web app chat live
-- [ ] Wire a `<ChatPanel />` in `app/page.tsx` that calls `/api/ai/*` endpoints.
-  - Mode selector (Explain / Break down / Plan / Recover).
-  - Render structured responses (bullets / subtasks / time blocks).
-  - "Recover" button toggles `/api/ai/pause`.
-- [ ] Render a visual mini-timeline for the `plan` response (blocks on a bar).
-- [ ] Focus-session timer using the subtasks list.
+### P1 — real SMS bot (make the fake chat real)
+- [ ] Register a Twilio / OpenPhone / Vonage number.
+- [ ] Add `/api/sms/inbound` webhook → parses the message, calls `/api/ai/explain` or `/api/ai/breakdown`, texts back the response + a short `kumo.ai/c/:id` link.
+- [ ] Session store (Supabase `sms_sessions` table) mapping phone # → chat id, so the link on laptop picks up the same conversation.
 
-### P1 — real auth
-- [ ] Swap anonymous mode for Supabase Auth (email magic link).
-- [ ] Scope all existing tables by `auth.uid()` and tighten RLS policies.
-- [ ] Bind `user_state.user_id` to the real auth UID (replace the `SOLO_USER_KEY` hack in `app/api/ai/pause/route.ts`).
+### P1 — ChatPanel in web app
+- [ ] `<ChatPanel />` in `/dashboard` wired to `/api/ai/*` with mode toggle.
+- [ ] Mini-timeline viz for `plan` response.
+- [ ] Focus-session timer tied to `subtasks`.
 
-### P2 — extension v1
-- [ ] Auto-extract assignment list from a Brightspace "Assignments" page
-      and send a structured list (not just raw text).
-- [ ] Side panel view (`chrome.sidePanel`) for full chat inside the browser.
-- [ ] Login button that mirrors the web-app session cookie.
+### P1 — Supabase Auth
+- [ ] Magic-link login, bind existing tables to `auth.uid()`, tighten RLS.
 
-## Constraints / gotchas
-- **Git push:** user clicks "Save to GitHub" in Emergent — do NOT run `git push`.
-- **Target branch:** `raku-ui` (not `main`).
+### P2
+- [ ] Extension v1 — parse Brightspace assignment lists into structured items.
+- [ ] Rename repo + extension folder to kumo (low priority; folder references are internal only).
+
+## Constraints
+- **Git push:** user clicks "Save to GitHub" in Emergent. No `git push`.
+- **Target branch:** `raku-ui`.
 - **No heavy AI SDKs** — pure `fetch` only.
-- **Supabase-only** — no AWS Amplify, no MongoDB, no FastAPI.
+- **Supabase-only.**

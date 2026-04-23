@@ -1,4 +1,4 @@
--- Raku schema (idempotent — safe to re-run).
+-- Kumo schema (idempotent — safe to re-run).
 -- Paste into Supabase → SQL Editor → New query → Run.
 
 -- ──────────────── tasks (v1, already exists for most users) ────────────────

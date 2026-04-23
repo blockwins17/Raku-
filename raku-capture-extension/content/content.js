@@ -41,8 +41,8 @@
   /* ───────── bubble ───────── */
   const bubble = document.createElement("button");
   bubble.className = "raku-bubble";
-  bubble.setAttribute("aria-label", "Open Raku Capture");
-  bubble.title = "Raku Capture";
+  bubble.setAttribute("aria-label", "Open Kumo Capture");
+  bubble.title = "Kumo Capture";
   bubble.textContent = "R";
   shadow.appendChild(bubble);
 
@@ -50,13 +50,13 @@
   const panel = document.createElement("div");
   panel.className = "raku-panel";
   panel.setAttribute("role", "dialog");
-  panel.setAttribute("aria-label", "Raku Capture");
+  panel.setAttribute("aria-label", "Kumo Capture");
   panel.hidden = true;
   panel.innerHTML = `
     <div class="raku-panel-head">
       <div class="raku-brand">
         <span class="raku-dot"></span>
-        <span>Raku Capture</span>
+        <span>Kumo Capture</span>
       </div>
       <button class="raku-close" aria-label="Close">×</button>
     </div>
@@ -85,7 +85,7 @@
         </button>
 
         <p class="raku-footnote">
-          Raku reads the visible text on this page. No background snooping.
+          Kumo reads the visible text on this page. No background snooping.
         </p>
       </div>
 
@@ -168,7 +168,7 @@
     if (loadingText) {
       loadingText.textContent = mode === "explain_simple"
         ? "making it small…"
-        : "sending to Raku…";
+        : "sending to Kumo…";
     }
 
     const rawText = getVisibleText().slice(0, 40000);
@@ -199,14 +199,14 @@
 
     if (mode === "organize_assignments") {
       return showResultHTML(`
-        <h3 class="raku-h3">Sent to Raku</h3>
-        <p class="raku-p">I'll organize this for you. check your Inbox in the Raku app soon.</p>
+        <h3 class="raku-h3">Sent to Kumo</h3>
+        <p class="raku-p">I'll organize this for you. check your Inbox in the Kumo app soon.</p>
       `);
     }
 
     // explain_simple → render structured explanation
     const exp = data?.explanation;
-    if (!exp) return showError("Raku didn't return an explanation. try again?");
+    if (!exp) return showError("Kumo didn't return an explanation. try again?");
 
     const summary   = String(exp.summary ?? "");
     const whatToDo  = Array.isArray(exp.whatToDo)  ? exp.whatToDo.map(String)  : [];

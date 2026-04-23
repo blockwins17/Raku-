@@ -1,11 +1,11 @@
-# Raku Capture — v0.1.0 (Chrome Extension)
+# Kumo Capture — v0.1.0 (Chrome Extension)
 
-A tiny floating **R** bubble on every page. One click →
+A tiny floating **K** cloud on every page. One click →
 
-- **Organize assignments** → send what's on the page to your Raku app's Inbox.
+- **Organize assignments** → send what's on the page to your Kumo app's Inbox.
 - **Explain this in simple terms** → show a TL;DR, what the page is asking you to do, and the key points.
 
-Built for Raku, an academic OS for college students with ADHD-adjacent brains. No tracking, no background snooping, no data sent unless you click a button.
+Built for Kumo, an AI cloud for college students with ADHD-adjacent brains. No tracking, no background snooping, no data sent unless you click a button.
 
 ---
 
@@ -25,8 +25,8 @@ Built for Raku, an academic OS for college students with ADHD-adjacent brains. N
 
 The extension posts captures to `${BASE_URL}/api/capture`.
 
-- **Default:** `https://raku.vercel.app` (update via Options if your Vercel URL is different).
-- **Change it:** click the extension icon in the Chrome toolbar → **Change backend URL**, or visit **chrome://extensions → Raku Capture → Details → Extension options**.
+- **Default:** `https://kumo.vercel.app` (update via Options if your Vercel URL is different).
+- **Change it:** click the extension icon in the Chrome toolbar → **Change backend URL**, or visit **chrome://extensions → Kumo Capture → Details → Extension options**.
 - Stored in `chrome.storage.local` as `rakuBaseUrl`.
 
 ---
@@ -37,8 +37,8 @@ The extension posts captures to `${BASE_URL}/api/capture`.
 2. Click the **R** bubble in the bottom-right corner.
 3. (Optional) Type a course tag like `HIST 101`.
 4. Choose:
-   - **Organize assignments** → page text is saved to your Raku Inbox as a raw capture.
-   - **Explain this in simple terms** → Raku returns a structured explanation shown right in the overlay.
+   - **Organize assignments** → page text is saved to your Kumo Inbox as a raw capture.
+   - **Explain this in simple terms** → Kumo returns a structured explanation shown right in the overlay.
 5. **Esc** or the **×** button closes the overlay.
 
 ---
