@@ -3,6 +3,7 @@ import TextKumoQR from "./components/TextKumoQR";
 import BrightspaceDemo from "./components/BrightspaceDemo";
 import FakeChat from "./components/FakeChat";
 import KumoFeatures from "./components/KumoFeatures";
+import ConnectAll from "./components/ConnectAll";
 
 export default function LandingPage() {
   return (
@@ -94,6 +95,9 @@ export default function LandingPage() {
 
       {/* ───────── FEATURES (deadlines / breakdown / pomodoro / nudge) ───────── */}
       <KumoFeatures />
+
+      {/* ───────── CONNECTIONS (paste any calendar / syllabus) ───────── */}
+      <ConnectAll />
 
       {/* ───────── TEXT KUMO QR ───────── */}
       <section id="text" style={S.section}>

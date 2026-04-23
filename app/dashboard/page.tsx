@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { supabase, isSupabaseReady, type Task } from "@/lib/supabase/client";
+import PasteDeadlines from "../components/PasteDeadlines";
 
 const DEFAULT_TASKS: Array<Pick<Task, "title" | "status">> = [
   { title: "Email professor about extension", status: "today" },
@@ -100,6 +102,15 @@ export default function Page() {
   if (!isSupabaseReady) {
     return (
       <main style={S.page}>
+        <nav style={S.topNav}>
+          <Link href="/" style={S.backLink} data-testid="dash-back-home">
+            ← back to kumo
+          </Link>
+          <Link href="/" style={S.navBrand}>
+            <span style={S.navDot} />
+            <span>kumo</span>
+          </Link>
+        </nav>
         <div style={S.banner}>
           <strong style={{ color: "#F28FAD" }}>Backend not configured.</strong>
           <div style={{ marginTop: 8, color: "rgba(245,245,242,0.55)" }}>
@@ -117,13 +128,30 @@ export default function Page() {
 
   return (
     <main style={S.page}>
+      <nav style={S.topNav}>
+        <Link href="/" style={S.backLink} data-testid="dash-back-home">
+          ← back to kumo
+        </Link>
+        <Link href="/" style={S.navBrand}>
+          <span style={S.navDot} />
+          <span>kumo</span>
+        </Link>
+      </nav>
+
       <header style={S.header}>
         <KumoLight />
         <div>
-          <div style={S.eyebrow}>kumo</div>
+          <div style={S.eyebrow}>kumo · your day</div>
           <h1 style={S.h1}>school feels lighter.</h1>
         </div>
       </header>
+
+      <PasteDeadlines
+        onTasksAdded={async () => {
+          const fresh = await loadTasks().catch(() => null);
+          if (fresh) setTasks(fresh);
+        }}
+      />
 
       {error && (
         <div style={S.errorBanner}>
@@ -269,11 +297,43 @@ const S: Record<string, React.CSSProperties> = {
     minHeight: "100vh",
     background: "#07070a",
     color: "#f5f5f2",
-    padding: "48px 24px 96px",
+    padding: "32px 24px 96px",
     maxWidth: 960,
     margin: "0 auto",
     fontFamily:
       "var(--font-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+  },
+  topNav: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 36,
+    paddingBottom: 4,
+  },
+  backLink: {
+    fontSize: 13,
+    color: "rgba(245,245,242,0.6)",
+    textDecoration: "none",
+    padding: "6px 12px",
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.1)",
+  },
+  navBrand: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    fontSize: 13,
+    color: "rgba(245,245,242,0.8)",
+    textDecoration: "none",
+    letterSpacing: "0.01em",
+  },
+  navDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 2,
+    background: "#8BE3B4",
+    boxShadow: "0 0 10px rgba(139,227,180,0.55)",
+    transform: "rotate(45deg)",
   },
   header: {
     display: "flex",
