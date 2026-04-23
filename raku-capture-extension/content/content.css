@@ -1,0 +1,7 @@
+/*
+ * Intentionally nearly empty.
+ * All real styles are scoped inside the Shadow DOM inside content.js so that
+ * page CSS can't bleed in or out. This file exists so Chrome can list it in
+ * the manifest, which helps with review visibility, and gives us a place to
+ * put any top-level styles we ever need outside the shadow root.
+ */

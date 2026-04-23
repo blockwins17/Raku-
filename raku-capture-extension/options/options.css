@@ -1,0 +1,83 @@
+:root { color-scheme: dark; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  background: #07070a;
+  color: #f5f5f2;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+.wrap { max-width: 520px; margin: 0 auto; padding: 40px 24px; }
+
+.head {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 24px;
+}
+.dot {
+  width: 10px; height: 10px; border-radius: 2px;
+  background: #8BE3B4;
+  box-shadow: 0 0 12px rgba(139,227,180,0.55);
+  transform: rotate(45deg);
+}
+h1 { font-size: 18px; font-weight: 500; letter-spacing: -0.01em; }
+
+.card {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 16px;
+  padding: 20px;
+}
+.field { display: block; margin-bottom: 16px; }
+.label {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(245,245,242,0.4);
+  margin-bottom: 6px;
+}
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #f5f5f2;
+  font-size: 13px;
+  outline: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.input:focus { border-color: #8BE3B4; }
+.hint { display: block; font-size: 11px; color: rgba(245,245,242,0.4); margin-top: 6px; }
+
+.row { display: flex; gap: 8px; }
+.btn {
+  padding: 9px 16px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.15s ease;
+}
+.btn:hover { opacity: 0.92; }
+.btn-primary { background: #8BE3B4; color: #07070a; border: 1px solid #8BE3B4; }
+.btn-ghost {
+  background: transparent;
+  color: rgba(245,245,242,0.7);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+.msg {
+  font-size: 12px;
+  color: #8BE3B4;
+  margin-top: 14px;
+  min-height: 16px;
+}
+.foot {
+  margin-top: 24px;
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(245,245,242,0.3);
+}

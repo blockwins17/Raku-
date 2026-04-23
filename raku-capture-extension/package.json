@@ -1,0 +1,9 @@
+{
+  "name": "raku-capture-extension",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Chrome extension for Raku — floating bubble to explain or organize any page.",
+  "scripts": {
+    "build:extension": "node scripts/build.js"
+  }
+}
