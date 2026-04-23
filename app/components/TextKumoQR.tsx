@@ -12,10 +12,9 @@ import { QRCodeSVG } from "qrcode.react";
  * messaging-provider number when you wire up the real SMS bot.
  */
 
-// Reserved-for-fiction 555 number for the demo video.
-// When going live, swap for the real Kumo SMS number.
-export const DEMO_PHONE = "+1 (555) 586-6000";
-const SMS_NUMBER_RAW = "+15555866000"; // E.164, no spaces
+// Real Kumo SMS number (Twilio).
+export const DEMO_PHONE = "+1 (844) 569-6850";
+const SMS_NUMBER_RAW = "+18445696850"; // E.164, no spaces
 const SMS_BODY = "hi kumo";
 
 const SMS_URI = `sms:${SMS_NUMBER_RAW}?&body=${encodeURIComponent(SMS_BODY)}`;

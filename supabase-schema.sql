@@ -68,6 +68,28 @@ drop policy if exists "anon insert capture_raw" on public.capture_raw;
 create policy "anon read capture_raw"   on public.capture_raw for select to anon using (true);
 create policy "anon insert capture_raw" on public.capture_raw for insert to anon with check (true);
 
+-- ──────────────── sms_sessions (Twilio inbound tracker) ────────────────
+create table if not exists public.sms_sessions (
+  id           uuid primary key default gen_random_uuid(),
+  phone        text unique not null,      -- E.164 phone #
+  user_id      uuid,                      -- linked once auth exists
+  last_inbound text,
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+
+create index if not exists sms_sessions_phone_idx on public.sms_sessions(phone);
+
+alter table public.sms_sessions enable row level security;
+
+drop policy if exists "anon read sms_sessions"   on public.sms_sessions;
+drop policy if exists "anon insert sms_sessions" on public.sms_sessions;
+drop policy if exists "anon update sms_sessions" on public.sms_sessions;
+
+create policy "anon read sms_sessions"   on public.sms_sessions for select to anon using (true);
+create policy "anon insert sms_sessions" on public.sms_sessions for insert to anon with check (true);
+create policy "anon update sms_sessions" on public.sms_sessions for update to anon using (true) with check (true);
+
 -- ──────────────── user_state (for pause / killswitch) ────────────────
 create table if not exists public.user_state (
   id            uuid primary key default gen_random_uuid(),
