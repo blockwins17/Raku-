@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+**/node_modules/
 /.pnp
 .pnp.js
 .yarn/install-state.gz
@@ -26,6 +27,8 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
+.env
+.env*
 .env*.local
 
 # vercel
@@ -36,39 +39,11 @@ yarn-error.log*
 next-env.d.ts
 
 # amplify
-.amplify
+.amplify/
 amplify_outputs*
 amplifyconfiguration*
-# Raku additions
-amplify_outputs.json
-.amplify/
-.DS_Store
+
+# never commit yarn.lock — this project uses npm
+yarn.lock
 node_modules/@next/swc-linux-arm64-gnu/next-swc.linux-arm64-gnu.node
 node_modules/@next/swc-linux-arm64-musl/next-swc.linux-arm64-musl.node
--e 
-# Environment and credential files
-.env
-.env.*
-*.env
-credentials.json
-*.pem
-*.key
-.credentials
--e 
-# Environment and credential files
-.env
-.env.*
-*.env
-credentials.json
-*.pem
-*.key
-.credentials
--e 
-# Environment and credential files
-.env
-.env.*
-*.env
-credentials.json
-*.pem
-*.key
-.credentials

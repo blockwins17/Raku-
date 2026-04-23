@@ -1,3 +1,5 @@
 {
+  "name": "amplify",
+  "version": "0.0.0",
   "type": "module"
 }
