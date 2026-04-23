@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase, isSupabaseReady, type Task } from "@/lib/supabase/client";
+import OpenOnPhone from "./components/OpenOnPhone";
 
 const DEFAULT_TASKS: Array<Pick<Task, "title" | "status">> = [
   { title: "Email professor about extension", status: "today" },
@@ -211,6 +212,8 @@ export default function Page() {
           })}
         </div>
       )}
+
+      <OpenOnPhone />
 
       <footer style={S.footer}>v1 · raku-ui · backed by Supabase</footer>
     </main>
