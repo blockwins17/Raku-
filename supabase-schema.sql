@@ -1,7 +1,7 @@
--- Raku tasks schema
--- Paste this whole file into Supabase → SQL Editor → New query → Run.
--- It's idempotent — safe to re-run.
+-- Raku schema (idempotent — safe to re-run).
+-- Paste into Supabase → SQL Editor → New query → Run.
 
+-- ──────────────── tasks (v1, already exists for most users) ────────────────
 create table if not exists public.tasks (
   id         uuid primary key default gen_random_uuid(),
   user_id    uuid,
@@ -11,26 +11,78 @@ create table if not exists public.tasks (
   created_at timestamptz not null default now()
 );
 
--- Row Level Security on, with temporary anon-wide-open policies.
--- We'll tighten these when we add auth.
 alter table public.tasks enable row level security;
 
 drop policy if exists "anon read tasks"   on public.tasks;
 drop policy if exists "anon insert tasks" on public.tasks;
 drop policy if exists "anon update tasks" on public.tasks;
 
-create policy "anon read tasks"
-  on public.tasks for select
-  to anon
-  using (true);
+create policy "anon read tasks"   on public.tasks for select to anon using (true);
+create policy "anon insert tasks" on public.tasks for insert to anon with check (true);
+create policy "anon update tasks" on public.tasks for update to anon using (true) with check (true);
 
-create policy "anon insert tasks"
-  on public.tasks for insert
-  to anon
-  with check (true);
+-- ──────────────── subtasks (for AI breakdown mode) ────────────────
+create table if not exists public.subtasks (
+  id                uuid primary key default gen_random_uuid(),
+  parent_task_id    uuid references public.tasks(id) on delete cascade,
+  user_id           uuid,
+  title             text not null,
+  estimated_minutes int  not null default 10,
+  status            text not null default 'todo'
+                    check (status in ('todo', 'doing', 'done')),
+  order_index       int  not null default 0,
+  created_at        timestamptz not null default now()
+);
 
-create policy "anon update tasks"
-  on public.tasks for update
-  to anon
-  using (true)
-  with check (true);
+create index if not exists subtasks_parent_idx on public.subtasks(parent_task_id);
+
+alter table public.subtasks enable row level security;
+
+drop policy if exists "anon read subtasks"   on public.subtasks;
+drop policy if exists "anon insert subtasks" on public.subtasks;
+drop policy if exists "anon update subtasks" on public.subtasks;
+drop policy if exists "anon delete subtasks" on public.subtasks;
+
+create policy "anon read subtasks"   on public.subtasks for select to anon using (true);
+create policy "anon insert subtasks" on public.subtasks for insert to anon with check (true);
+create policy "anon update subtasks" on public.subtasks for update to anon using (true) with check (true);
+create policy "anon delete subtasks" on public.subtasks for delete to anon using (true);
+
+-- ──────────────── capture_raw (from Chrome extension) ────────────────
+create table if not exists public.capture_raw (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid,
+  mode        text not null,              -- 'organize_assignments' | 'explain_simple'
+  source      text not null default 'extension_v0',
+  url         text,
+  course_name text,
+  raw_text    text,
+  created_at  timestamptz not null default now()
+);
+
+alter table public.capture_raw enable row level security;
+
+drop policy if exists "anon read capture_raw"   on public.capture_raw;
+drop policy if exists "anon insert capture_raw" on public.capture_raw;
+
+create policy "anon read capture_raw"   on public.capture_raw for select to anon using (true);
+create policy "anon insert capture_raw" on public.capture_raw for insert to anon with check (true);
+
+-- ──────────────── user_state (for pause / killswitch) ────────────────
+create table if not exists public.user_state (
+  id            uuid primary key default gen_random_uuid(),
+  user_id       uuid unique,
+  pause_until   timestamptz,
+  pause_reason  text,
+  updated_at    timestamptz not null default now()
+);
+
+alter table public.user_state enable row level security;
+
+drop policy if exists "anon read user_state"   on public.user_state;
+drop policy if exists "anon insert user_state" on public.user_state;
+drop policy if exists "anon update user_state" on public.user_state;
+
+create policy "anon read user_state"   on public.user_state for select to anon using (true);
+create policy "anon insert user_state" on public.user_state for insert to anon with check (true);
+create policy "anon update user_state" on public.user_state for update to anon using (true) with check (true);
