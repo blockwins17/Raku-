@@ -1,0 +1,6 @@
+/* Thin shim — real styling lives in globals.css and page.module.css. */
+body {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--fg);
+}
