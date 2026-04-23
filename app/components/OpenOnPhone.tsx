@@ -28,17 +28,27 @@ export default function OpenOnPhone() {
 
   return (
     <section data-testid="open-on-phone" style={S.card}>
-      <div>
-        <div style={S.eyebrow}>Open Raku on your phone</div>
+      <div style={S.copy}>
+        <div style={S.eyebrow}>Chat with Raku on your phone</div>
+        <h2 style={S.title}>your tiny AI friend, in your pocket.</h2>
         <p style={S.desc}>
           {isPhone
-            ? "you're already on your phone — no need to scan."
-            : "scan this QR with your camera to open this page."}
+            ? "you're already on your phone — tap below to start chatting."
+            : "scan this QR with your camera to open Raku on your phone and start chatting."}
         </p>
+        {isPhone && url && (
+          <a
+            href={url}
+            style={S.cta}
+            data-testid="open-on-phone-cta"
+          >
+            Chat with Raku →
+          </a>
+        )}
       </div>
 
       {!isPhone && (
-        <div style={S.qrBox} aria-label="QR code for current page">
+        <div style={S.qrBox} aria-label="QR code to chat with Raku on your phone">
           {url ? (
             <QRCodeSVG
               value={url}
@@ -63,13 +73,17 @@ const S: Record<string, React.CSSProperties> = {
     background: "rgba(255,255,255,0.02)",
     border: "1px solid rgba(255,255,255,0.06)",
     borderRadius: 20,
-    padding: "24px 28px",
+    padding: "28px 28px",
     marginTop: 32,
     display: "flex",
-    gap: 24,
+    gap: 28,
     alignItems: "center",
     justifyContent: "space-between",
     flexWrap: "wrap",
+  },
+  copy: {
+    flex: "1 1 280px",
+    minWidth: 240,
   },
   eyebrow: {
     fontSize: 10,
@@ -77,12 +91,31 @@ const S: Record<string, React.CSSProperties> = {
     textTransform: "uppercase",
     color: "rgba(245,245,242,0.38)",
   },
-  desc: {
+  title: {
+    fontFamily: "var(--font-display), 'Fraunces', ui-serif, Georgia, serif",
+    fontSize: "clamp(1.25rem, 2.2vw, 1.6rem)",
+    lineHeight: 1.1,
+    letterSpacing: "-0.02em",
     marginTop: 8,
+    marginBottom: 10,
+  },
+  desc: {
     fontSize: 14,
     color: "rgba(245,245,242,0.7)",
     lineHeight: 1.5,
-    maxWidth: 320,
+    maxWidth: 340,
+  },
+  cta: {
+    display: "inline-block",
+    marginTop: 14,
+    padding: "10px 18px",
+    borderRadius: 999,
+    background: "#8BE3B4",
+    color: "#0a0a0a",
+    border: "1px solid #8BE3B4",
+    fontSize: 13,
+    fontWeight: 500,
+    textDecoration: "none",
   },
   qrBox: {
     background: "#f5f5f2",
